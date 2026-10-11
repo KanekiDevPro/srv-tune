@@ -23,6 +23,10 @@ state_effective_dir() {
   if [[ "${SRV_TUNE_TEST:-0}" == "1" ]]; then
     base="${TMPDIR:-/tmp}/srv-tune-test-$(id -u 2>/dev/null || printf 'x')"
     mkdir -p "$base" 2>/dev/null || return 1
+    # Root-safe: the fallback dir itself must not be world-writable, or the
+    # root refusal below (correctly) rejects it. Best-effort chmod keeps
+    # enforcement meaningful where the platform honors modes.
+    chmod 700 "$base" 2>/dev/null || true
     printf '%s\n' "$base"
     return 0
   fi

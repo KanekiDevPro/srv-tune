@@ -22,7 +22,12 @@ lock_effective_file() {
     return 0
   fi
   if [[ "${SRV_TUNE_TEST:-0}" == "1" ]]; then
-    printf '%s/srv-tune-test-%s.lock\n' "${TMPDIR:-/tmp}" "$(id -u 2>/dev/null || printf 'x')"
+    local fallback
+    fallback="${TMPDIR:-/tmp}/srv-tune-test-$(id -u 2>/dev/null || printf 'x')"
+    mkdir -p "$fallback" 2>/dev/null || return 1
+    # Root-safe (see state.sh): the dir itself must not be world-writable.
+    chmod 700 "$fallback" 2>/dev/null || true
+    printf '%s/srv-tune-test-%s.lock\n' "$fallback" "$(id -u 2>/dev/null || printf 'x')"
     return 0
   fi
   printf 'error: lock dir %s is missing or unwritable.\n' "$parent" >&2

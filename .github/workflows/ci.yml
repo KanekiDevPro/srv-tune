@@ -119,11 +119,5 @@ jobs:
           printf 'a=1\n' | grep -E '^a=' | cut -d= -f2
       - name: Full bats suite on uutils coreutils
         run: bats tests/
-      - name: TEMPORARY-DEBUG test84 env (revert once root-caused)
-        if: failure()
-        run: |
-          whoami; id -u; echo "TMPDIR=${TMPDIR:-unset}"; ls -ld /tmp
-          command -v flock || echo no-flock
-          SRV_TUNE_TEST=1 SRV_TUNE_LOCK_BACKEND=mkdir SRV_TUNE_LOCK_FILE=/nonexistent-dir-xyz-123/lock bash -x -c 'source lib/lock.sh; lock_acquire && lock_release && echo FALLBACK-OK; echo "RC=$?"'
       - name: Scanner smoke on 26.04
         run: bash scanner/scan.sh --recommend-only
