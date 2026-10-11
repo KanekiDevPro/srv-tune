@@ -132,4 +132,32 @@ grep -q '198.51.100.9' "$SRV_TUNE_SYSROOT/etc/fail2ban/jail.d/00-srv-tune.local"
 grep -q 'backend = systemd' "$SRV_TUNE_SYSROOT/etc/fail2ban/jail.d/00-srv-tune.local"
 printf 'PASS: fail2ban jail carries the session source\n'
 
+printf '=== 6. kill -9 between write and validate reverts via real timer ===\n'
+t6dir="$SRV_TUNE_STATE_DIR/backups/crashx"
+mkdir -p "$t6dir"
+t6="$SRV_TUNE_STATE_DIR/crash-canary.conf"
+printf 'original\n' >"$t6"
+cp "$t6" "$t6dir/canary.conf"
+printf 'ts\t%s\t%s\n' "$t6" "$t6dir/canary.conf" >"$t6dir/manifest.tsv"
+# The "applier" arms a REAL 8s guard, writes (breaks the file), then dies
+# exactly where the ssh crash hook fires: after the write, before validate.
+SRV_TUNE_STATE_DIR="$SRV_TUNE_STATE_DIR" bash -c "
+  source '$ROOT/lib/ssh-guard.sh'
+  guard_start crashx 8 >/dev/null
+  printf 'broken\n' >'$t6'
+  kill -9 \$\$
+" &
+applier=$!
+wait "$applier" 2>/dev/null || true
+[[ "$(cat "$t6")" == "broken" ]] || {
+  printf 'FAIL: setup did not break the canary\n' >&2
+  exit 1
+}
+sleep 15
+[[ "$(cat "$t6")" == "original" ]] || {
+  printf 'FAIL: real timer did not revert after kill -9 (got %s)\n' "$(cat "$t6")" >&2
+  exit 1
+}
+printf 'PASS: kill -9 at the crash point still reverted via real timer\n'
+
 printf 'ALL P3B-SYSTEMD CHECKS PASSED\n'
