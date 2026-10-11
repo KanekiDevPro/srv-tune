@@ -65,8 +65,12 @@ load bats_helper
 }
 
 @test "bug3: TEST mode falls back to a TMPDIR lock" {
+  # Subject is the fallback PATH, not the backend: pin mkdir so flock
+  # availability (runner vs container) cannot change what is asserted.
+  export SRV_TUNE_LOCK_BACKEND=mkdir
   run env SRV_TUNE_TEST=1 SRV_TUNE_LOCK_FILE=/nonexistent-dir-xyz-123/lock \
     bash -c 'source "$1"; lock_acquire && lock_release && echo FALLBACK-OK' bash "$SRV_TUNE_ROOT/lib/lock.sh"
+  unset SRV_TUNE_LOCK_BACKEND
   [ "$status" -eq 0 ]
   [[ "$output" == *"FALLBACK-OK"* ]]
 }

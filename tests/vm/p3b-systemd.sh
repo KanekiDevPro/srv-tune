@@ -24,6 +24,9 @@ done
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 export SRV_TUNE_ROOT="$ROOT"
+# sshd -t requires the privilege separation dir even for config tests.
+mkdir -p /run/sshd
+chmod 755 /run/sshd
 export SRV_TUNE_TEST=1
 export SRV_TUNE_SYSROOT
 SRV_TUNE_SYSROOT="$(mktemp -d /tmp/srv-p3b-XXXXXX)"
