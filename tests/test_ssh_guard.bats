@@ -19,6 +19,20 @@ printf '%s\n' "\$*" >>"$SRV_TUNE_TMP/systemctl.log"
 exit 0
 EOF
   chmod +x "$d/systemd-run" "$d/systemctl"
+  # Deterministic clocks: fake date/ps controlled by env, real ones baked in.
+  local realdate realps
+  realdate="$(command -v date)"
+  realps="$(command -v ps || printf '')"
+  cat >"$d/date" <<EOF
+#!/usr/bin/env bash
+if [[ -n "\${SRV_TUNE_STUB_DATE:-}" ]]; then printf '%s\n' "\$SRV_TUNE_STUB_DATE"; else exec "$realdate" "\$@"; fi
+EOF
+  cat >"$d/ps" <<EOF
+#!/usr/bin/env bash
+if [[ "\${SRV_TUNE_STUB_ETIMES:-}" == "fail" ]]; then exit 1; fi
+if [[ -n "\${SRV_TUNE_STUB_ETIMES:-}" ]]; then printf '%s\n' "\$SRV_TUNE_STUB_ETIMES"; else exec "$realps" "\$@"; fi
+EOF
+  chmod +x "$d/date" "$d/ps"
   printf '%s\n' "$d"
 }
 
@@ -50,14 +64,39 @@ EOF
 @test "guard_confirm from a NEW session cancels (and stops the timer)" {
   local stubs
   stubs="$(_make_stubs)"
-  env PATH="$stubs:$PATH" SRV_TUNE_GUARD_BACKEND=systemd SSH_TTY=/dev/pts/7 \
+  env PATH="$stubs:$PATH" SRV_TUNE_GUARD_BACKEND=systemd SSH_TTY=/dev/pts/7 SRV_TUNE_STUB_DATE=1000 \
     bash -c 'source "$1"; guard_start myid 300 >/dev/null' bash "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
-  run env PATH="$stubs:$PATH" SSH_TTY=/dev/pts/9 \
+  run env PATH="$stubs:$PATH" SSH_TTY=/dev/pts/9 SRV_TUNE_STUB_DATE=1100 SRV_TUNE_STUB_ETIMES=5 \
     bash -c 'source "$1"; guard_confirm myid' bash "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
   [ "$status" -eq 0 ]
   [[ "$output" == *"confirmed and cancelled"* ]]
   [ -f "$SRV_TUNE_STATE_DIR/guard/cancelled-myid" ]
   grep -q "stop srv-tune-guard-myid.timer" "$SRV_TUNE_TMP/systemctl.log"
+}
+
+@test "guard_confirm rejects an older session even with a different tty" {
+  local stubs
+  stubs="$(_make_stubs)"
+  env PATH="$stubs:$PATH" SRV_TUNE_GUARD_BACKEND=systemd SSH_TTY=/dev/pts/7 SRV_TUNE_STUB_DATE=1000 \
+    bash -c 'source "$1"; guard_start myid 300 >/dev/null' bash "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
+  # Different tty (passes the tty rule) but started before the apply.
+  run env PATH="$stubs:$PATH" SSH_TTY=/dev/pts/9 SRV_TUNE_STUB_DATE=1000 SRV_TUNE_STUB_ETIMES=50 \
+    bash -c 'source "$1"; guard_confirm myid' bash "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"NEWER sessions"* ]]
+  [ ! -f "$SRV_TUNE_STATE_DIR/guard/cancelled-myid" ]
+}
+
+@test "guard_confirm warns and keeps the tty rule when age is undeterminable" {
+  local stubs
+  stubs="$(_make_stubs)"
+  env PATH="$stubs:$PATH" SRV_TUNE_GUARD_BACKEND=systemd SSH_TTY=/dev/pts/7 SRV_TUNE_STUB_DATE=1000 \
+    bash -c 'source "$1"; guard_start myid 300 >/dev/null' bash "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
+  run env PATH="$stubs:$PATH" SSH_TTY=/dev/pts/9 SRV_TUNE_STUB_DATE=1100 SRV_TUNE_STUB_ETIMES=fail \
+    bash -c 'source "$1"; guard_confirm myid' bash "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"tty rule only"* ]]
+  [ -f "$SRV_TUNE_STATE_DIR/guard/cancelled-myid" ]
 }
 
 @test "guard_confirm --force overrides the same-session rule" {

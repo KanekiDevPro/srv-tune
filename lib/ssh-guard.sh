@@ -73,6 +73,7 @@ done <"\$MANIFEST"
 EOF
   chmod +x "$revert_script" 2>/dev/null || true
   printf '%s\n' "$(_current_tty)" >"$gdir/origin-${backup_id}.tty"
+  date +%s >"$gdir/apply-${backup_id}.ts" 2>/dev/null || printf '0\n' >"$gdir/apply-${backup_id}.ts"
   rm -f "$gdir/cancelled-${backup_id}"
 
   # Independent timer: systemd-run transient if available, else nohup fallback
@@ -90,13 +91,41 @@ EOF
   printf '%s\n' "$backup_id"
 }
 
-# guard_confirm <backup_id> — must run from a NEW session (different tty).
+# session_start_epoch - when the CALLER's session began (epoch secs).
+# ps etimes first, then tty device mtime. Fails when neither works.
+session_start_epoch() {
+  local now et pid
+  pid="${1:-$$}"
+  now="$(date +%s 2>/dev/null || printf '0')"
+  et="$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
+  if [[ "$et" =~ ^[0-9]+$ ]] && [[ "$now" != "0" ]]; then
+    printf '%s\n' "$((now - et))"
+    return 0
+  fi
+  local t mtime
+  t="$(tty 2>/dev/null || true)"
+  case "$t" in
+  /dev/*)
+    mtime="$(stat -c %Y "$t" 2>/dev/null || stat -f %B "$t" 2>/dev/null || true)"
+    if [[ "$mtime" =~ ^[0-9]+$ ]]; then
+      printf '%s\n' "$mtime"
+      return 0
+    fi
+    ;;
+  esac
+  return 1
+}
+
+# guard_confirm <backup_id> — must run from a NEW session: different tty AND
+# login time AFTER the apply timestamp. Older/same sessions are rejected
+# (steals of an old terminal cannot confirm). --force overrides with a warning.
 guard_confirm() {
   local backup_id="$1"
   local force="${2:-0}"
-  local gdir origin current
+  local gdir origin current apply_ts start
   gdir="$(guard_dir)"
   origin="$(cat "$gdir/origin-${backup_id}.tty" 2>/dev/null || printf 'unknown')"
+  apply_ts="$(cat "$gdir/apply-${backup_id}.ts" 2>/dev/null || printf '')"
   current="$(_current_tty)"
   if [[ "$origin" == "unknown" ]]; then
     printf 'warn: origin session unknown; cannot prove a NEW session\n' >&2
@@ -104,6 +133,20 @@ guard_confirm() {
   if [[ "$force" != "1" && "$origin" != "unknown" && "$origin" == "$current" ]]; then
     printf 'error: confirm must run from a NEW session (origin=%s current=%s). Use --force to override.\n' "$origin" "$current" >&2
     return 1
+  fi
+  if [[ -n "$apply_ts" && "$force" != "1" ]]; then
+    # Enforced where measurable (ps/stat exist: every real server). Where the
+    # session age is undeterminable (minimal shells), keep the tty-only rule
+    # with a loud warning instead of bricking legitimate confirms.
+    if ! start="$(session_start_epoch)"; then
+      printf 'warn: cannot determine this session start; tty rule only\n' >&2
+    elif [[ ! "$start" =~ ^[0-9]+$ ]] || [[ ! "$apply_ts" =~ ^[0-9]+$ ]]; then
+      printf 'error: unreadable timestamps (start=%s apply=%s); refusing without --force\n' "$start" "$apply_ts" >&2
+      return 1
+    elif [[ "$start" -le "$apply_ts" ]]; then
+      printf 'error: this session started at %s, apply was at %s: only NEWER sessions may confirm. Use --force to override.\n' "$start" "$apply_ts" >&2
+      return 1
+    fi
   fi
   touch "$gdir/cancelled-${backup_id}"
   if command -v systemctl >/dev/null 2>&1; then
