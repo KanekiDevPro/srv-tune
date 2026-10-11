@@ -12,8 +12,8 @@ __SRV_TUNE_DRYRUN_SOURCED=1
 # dry_run_file <path> <new_tmp> <why> - unified diff old-vs-new + one why line.
 dry_run_file() {
   local path="$1" new_tmp="$2" why="$3"
-  printf '--- %s (current)\n' "$path"
-  printf '+++ %s (proposed)\n' "$path"
+  printf '%s\n' "--- $path (current)"
+  printf '%s\n' "+++ $path (proposed)"
   if [[ -f "$path" ]]; then
     diff -u "$path" "$new_tmp" 2>/dev/null || true
   else

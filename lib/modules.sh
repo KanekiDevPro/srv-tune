@@ -69,6 +69,7 @@ run_apply() {
   # shellcheck disable=SC1091
   source "$(dirname "${BASH_SOURCE[0]}")/rollback.sh"
   state_init || return 1
+  local ran=0
   while IFS= read -r m; do
     [[ -z "$m" ]] && continue
     if [[ -n "$only" ]] && [[ ",$only," != *",$m,"* ]]; then
@@ -85,6 +86,13 @@ run_apply() {
     module_load "$m" || return 1
     printf '=== module: %s ===\n' "$m"
     "${m}_recommend" || true
+    if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+      # Dry-run: show diffs only. No backup, no verify, no rollback, no log.
+      "${m}_apply" "$SRV_TUNE_STATE_DIR/backups/dry-run" || return 1
+      printf 'dry-run: %s (no changes made)\n' "$m"
+      ran=$((ran + 1))
+      continue
+    fi
     id="$(new_backup_id)"
     dir="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}/backups/$id"
     mkdir -p "$dir" || return 1
@@ -106,7 +114,12 @@ run_apply() {
     fi
     state_log_applied "module=$m backup=$id"
     printf 'ok: %s applied (backup %s)\n' "$m" "$id"
+    ran=$((ran + 1))
   done < <(profile_modules "$profile")
+  if [[ -n "$only" && "$ran" == "0" ]]; then
+    printf 'error: --only matched no module in profile %s: %s\n' "$profile" "$only" >&2
+    return 1
+  fi
   rc=0
   return "$rc"
 }

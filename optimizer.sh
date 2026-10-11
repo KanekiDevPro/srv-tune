@@ -33,7 +33,7 @@ srv-tune $VERSION — Linux server optimizer
 Usage:
   optimizer scan [--json FILE] [--lang fa|en]
   optimizer recommend [--lang fa|en]
-  optimizer apply --profile X [--dry-run] [--yes] [--lang fa|en]
+  optimizer apply --profile X [--only mod[,mod]] [--dry-run] [--yes] [--lang fa|en]
   optimizer rollback [id] | list-backups | status | benchmark | explain <module>
   optimizer audit | update | uninstall | confirm <guard-id> [--force]
   optimizer --help | --version
@@ -45,6 +45,7 @@ DRY_RUN="${SRV_TUNE_DRY_RUN:-0}"
 ASSUME_YES="${SRV_TUNE_ASSUME_YES:-0}"
 FORCE=0
 JSON_OUT=""
+ONLY=""
 CMD=""
 
 while [[ $# -gt 0 ]]; do
@@ -60,6 +61,10 @@ while [[ $# -gt 0 ]]; do
     ;;
   --profile)
     PROFILE="${2:-}"
+    shift 2
+    ;;
+  --only)
+    ONLY="${2:-}"
     shift 2
     ;;
   --dry-run)
@@ -138,8 +143,25 @@ apply)
     printf 'error: apply requires --profile X\n' >&2
     exit 2
   }
-  printf 'apply --profile %s is MVP-blocked (P3). Scanner + safety engine only in v0.1.\n' "$PROFILE" >&2
-  exit 3
+  # shellcheck disable=SC1091
+  source "$SRV_TUNE_ROOT/lib/modules.sh"
+  if ! preflight_check; then
+    printf 'error: preflight blocks apply (see above)\n' >&2
+    exit 2
+  fi
+  lock_acquire || exit 1
+  trap lock_release EXIT INT TERM
+  if ! ui_confirm_default_yes "Apply profile $PROFILE${ONLY:+ (only: $ONLY)}?"; then
+    printf 'aborted\n'
+    trap - EXIT INT TERM
+    lock_release
+    exit 0
+  fi
+  run_apply "$PROFILE" "$ONLY"
+  rc=$?
+  trap - EXIT INT TERM
+  lock_release
+  exit $rc
   ;;
 rollback)
   rollback_id "${EXTRA:-}"
@@ -155,7 +177,12 @@ status)
 confirm)
   guard_confirm "${EXTRA:-}" "$FORCE"
   ;;
-explain | benchmark | update | uninstall)
+explain)
+  # shellcheck disable=SC1091
+  source "$SRV_TUNE_ROOT/lib/modules.sh"
+  module_explain "${EXTRA:-}"
+  ;;
+benchmark | update | uninstall)
   printf '%s: not yet implemented in v0.1 (MVP = scanner + backup/rollback)\n' "$CMD" >&2
   exit 3
   ;;
