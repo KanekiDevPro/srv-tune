@@ -83,7 +83,8 @@ done
 rm -rf /tmp/srv-p3b-fakeroot
 
 printf '=== 2. temporary sshd on 22222, ss-verified, then killed ===\n'
-sshd -f "$SRV_TUNE_SYSROOT/sshd_config.TUNNEL" -E "$SRV_TUNE_SYSROOT/sshd.log"
+SSHD_BIN="$(command -v sshd)"
+"$SSHD_BIN" -f "$SRV_TUNE_SYSROOT/sshd_config.TUNNEL" -E "$SRV_TUNE_SYSROOT/sshd.log"
 tries=0
 while [[ "$tries" -lt 10 ]]; do
   if ss -tlnp 2>/dev/null | grep -q ':22222 '; then
