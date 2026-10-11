@@ -44,7 +44,15 @@ lock_acquire() {
   local lock_dir="${lock_file}.d"
   # Backend override (tests, flock-less containers). Default: auto.
   if [[ "${SRV_TUNE_LOCK_BACKEND:-auto}" != "mkdir" ]] && command -v flock >/dev/null 2>&1; then
-    exec 9>"$lock_file" 2>/dev/null || return 1
+    # Probe with a NON-special builtin first: redirection failure on `exec`
+    # (special builtin) would kill the shell AND any 2>/dev/null here would
+    # permanently redirect this shell's own stderr to null. Never attach
+    # stderr redirections to bare exec.
+    if ! printf '' >>"$lock_file" 2>/dev/null; then
+      printf 'error: cannot write lock file %s\n' "$lock_file" >&2
+      return 1
+    fi
+    exec 9>"$lock_file"
     if ! flock -n 9; then
       printf 'error: another srv-tune run is active (%s)\n' "$lock_file" >&2
       return 1
@@ -67,7 +75,7 @@ lock_release() {
   local lock_file="${SRV_TUNE_LOCK_FILE:-/run/srv-tune.lock}"
   if [[ -n "$SRV_TUNE_LOCK_FD" ]]; then
     flock -u 9 2>/dev/null || true
-    exec 9>&- 2>/dev/null || true
+    exec 9>&-
     SRV_TUNE_LOCK_FD=""
   fi
   rmdir "${lock_file}.d" 2>/dev/null || true
