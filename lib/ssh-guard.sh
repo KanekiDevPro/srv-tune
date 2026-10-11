@@ -142,7 +142,10 @@ guard_confirm() {
     elif [[ ! "$start" =~ ^[0-9]+$ ]] || [[ ! "$apply_ts" =~ ^[0-9]+$ ]]; then
       printf 'error: unreadable timestamps (start=%s apply=%s); refusing without --force\n' "$start" "$apply_ts" >&2
       return 1
-    elif [[ "$start" -le "$apply_ts" ]]; then
+    # Strictly-older only: date has 1s resolution, so same-second is
+    # ambiguous, not provably older (fast legit confirms land here). The
+    # tty rule above still rejects the identical session.
+    elif [[ "$start" -lt "$apply_ts" ]]; then
       printf 'error: this session started at %s, apply was at %s: only NEWER sessions may confirm. Use --force to override.\n' "$start" "$apply_ts" >&2
       return 1
     fi
