@@ -106,27 +106,32 @@ done
   exit 2
 }
 
-case "$CMD" in
-scan)
+# cmd_locked_scan [extra args...] - lock, trap, scan, release. Read-only.
+cmd_locked_scan() {
   lock_acquire || exit 1
   # EXIT covers normal + error paths; INT/TERM cover Ctrl+C and kill.
   # lock_release is idempotent, so double runs are safe.
   trap lock_release EXIT INT TERM
-  export SRV_TUNE_JSON_OUT="$JSON_OUT"
-  bash "$SRV_TUNE_ROOT/scanner/scan.sh"
-  rc=$?
+  bash "$SRV_TUNE_ROOT/scanner/scan.sh" "$@"
+  local rc=$?
   trap - EXIT INT TERM
   lock_release
   exit $rc
+}
+
+case "$CMD" in
+scan)
+  export SRV_TUNE_JSON_OUT="$JSON_OUT"
+  cmd_locked_scan
   ;;
 recommend)
-  lock_acquire || exit 1
-  trap lock_release EXIT INT TERM
-  bash "$SRV_TUNE_ROOT/scanner/scan.sh" --recommend-only
-  rc=$?
-  trap - EXIT INT TERM
-  lock_release
-  exit $rc
+  cmd_locked_scan --recommend-only
+  ;;
+audit)
+  # Report only: preflight warnings never block the read-only scan.
+  preflight_check || log_warn "preflight issues noted (audit continues read-only)"
+  export SRV_TUNE_JSON_OUT="$JSON_OUT"
+  cmd_locked_scan --recommend-only
   ;;
 apply)
   [[ -z "$PROFILE" ]] && {
@@ -150,7 +155,7 @@ status)
 confirm)
   guard_confirm "${EXTRA:-}" "$FORCE"
   ;;
-explain | audit | benchmark | update | uninstall)
+explain | benchmark | update | uninstall)
   printf '%s: not yet implemented in v0.1 (MVP = scanner + backup/rollback)\n' "$CMD" >&2
   exit 3
   ;;
