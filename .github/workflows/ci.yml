@@ -44,6 +44,13 @@ jobs:
         run: |
           export SRV_TUNE_TEST=1 SRV_TUNE_STATE_DIR="$RUNNER_TEMP/dbg-state" SRV_TUNE_LOCK_FILE="$RUNNER_TEMP/dbg-state/lock" OS_RELEASE_FILE=/etc/os-release
           mkdir -p "$SRV_TUNE_STATE_DIR/backups"
+          ls -lad "$RUNNER_TEMP/dbg-state" "$RUNNER_TEMP"
+          touch "$RUNNER_TEMP/dbg-state/probe" && echo TOUCH-OK || echo TOUCH-FAIL
+          command -v flock; flock --version | head -n 1
+          bash -c 'exec 9>"$1"; echo EXEC9-OK' bash "$RUNNER_TEMP/dbg-state/lock" || echo EXEC9-FAIL
+          echo "=== TEST-84 repro ==="
+          SRV_TUNE_TEST=1 SRV_TUNE_LOCK_FILE=/nonexistent-dir-xyz-123/lock bash -x -c 'source lib/lock.sh; lock_acquire && lock_release && echo FALLBACK-OK; echo "REPRO-RC=$?"'
+          echo "=== bogus trace ==="
           bash -x optimizer.sh apply --profile generic --only bogus --yes; echo "TRACE-RC=$?"
   scan-matrix:
     strategy:

@@ -133,7 +133,11 @@ _lock_free() {
   run bash -c 'source "$1"; is_root() { return 0; }; refuse_world_writable "$2" "lock dir"' bash "$SRV_TUNE_ROOT/lib/util.sh" "$SRV_TUNE_TMP/ww"
   [ "$status" -ne 0 ]
   [[ "$output" == *"refusing world-writable"* ]]
-  # Real (non-root here) callers are allowed through.
+  # Real callers: root is refused, non-root passes.
   run bash -c 'source "$1"; refuse_world_writable "$2" "lock dir"' bash "$SRV_TUNE_ROOT/lib/util.sh" "$SRV_TUNE_TMP/ww"
-  [ "$status" -eq 0 ]
+  if [[ "$(id -u)" == "0" ]]; then
+    [ "$status" -ne 0 ]
+  else
+    [ "$status" -eq 0 ]
+  fi
 }

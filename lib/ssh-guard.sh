@@ -79,11 +79,14 @@ EOF
   # Independent timer: systemd-run transient if available, else nohup fallback
   # (disowned: survives crash/disconnect of this session).
   if guard_use_systemd; then
-    if systemd-run --quiet --on-active="${timeout}" --unit "srv-tune-guard-${backup_id}" --timer-property=AccuracySec=5 \
-      "$revert_script" >/dev/null 2>&1; then
+    local run_err
+    if run_err="$(systemd-run --quiet --on-active="${timeout}" --unit "srv-tune-guard-${backup_id}" --timer-property=AccuracySec=5 \
+      "$revert_script" 2>&1 >/dev/null)"; then
       printf '%s\n' "$backup_id"
       return 0
     fi
+    # Visible for post-mortem (integration job dumps this on failure).
+    printf '%s\n' "$run_err" >"$gdir/systemd-run.err"
   fi
   # shellcheck disable=SC2086
   nohup bash -c "sleep ${timeout}; test -f '$gdir/cancelled-${backup_id}' || bash '$revert_script'" >/dev/null 2>&1 &

@@ -17,6 +17,13 @@ if [[ "\$*" == "is-active chrony" ]]; then exit 0; fi
 exit 3
 EOF
   chmod +x "$SRV_TUNE_TMP/stubbin/systemctl"
+  # Not a container here: detect-virt reports bare metal so the systemctl
+  # stub (chrony active) governs time-daemon detection.
+  cat >"$SRV_TUNE_TMP/stubbin/systemd-detect-virt" <<'EOF'
+#!/usr/bin/env bash
+printf 'bare\n'
+EOF
+  chmod +x "$SRV_TUNE_TMP/stubbin/systemd-detect-virt"
   export PATH="$SRV_TUNE_TMP/stubbin:$PATH"
   # shellcheck disable=SC1091
   source "$SRV_TUNE_ROOT/lib/modules.sh"
