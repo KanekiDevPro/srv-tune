@@ -11,11 +11,36 @@ is_root() {
   [[ "${EUID:-$(id -u)}" == "0" ]]
 }
 
+# path_is_world_writable <dir> - portable other-write-bit check, no GNU stat.
+path_is_world_writable() {
+  local perms
+  perms="$(ls -ld "$1" 2>/dev/null | awk '{print $1}')"
+  case "$perms" in
+  ????????w*) return 0 ;;
+  *) return 1 ;;
+  esac
+}
+
+# refuse_world_writable <dir> <what> - fails when root would use a
+# world-writable path. Returns 0 when safe or non-root with explicit path.
+refuse_world_writable() {
+  local dir="$1" what="$2"
+  if is_root && path_is_world_writable "$dir"; then
+    printf 'error: refusing world-writable %s for root: %s\n' "$what" "$dir" >&2
+    return 1
+  fi
+  return 0
+}
+
 # read_kv_file <file> <key> - portable KEY=VALUE reader, no PCRE.
+# Prints the value (exit 0) or nothing (exit 1). Never aborts set -e callers
+# on a missing key: grep-no-match is expected, not an error.
 read_kv_file() {
-  local file="$1" key="$2"
+  local file="$1" key="$2" val
   [[ -f "$file" ]] || return 1
-  grep -E "^${key}=" "$file" 2>/dev/null | tail -n 1 | cut -d= -f2- | tr -d '"'
+  val="$(grep -E "^${key}=" "$file" 2>/dev/null | tail -n 1 | cut -d= -f2- | tr -d '"' || true)"
+  [[ -n "$val" ]] || return 1
+  printf '%s\n' "$val"
 }
 
 # json_escape - minimal escaper for strings we emit.

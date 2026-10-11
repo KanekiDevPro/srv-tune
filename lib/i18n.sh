@@ -16,8 +16,8 @@ source_lib() {
 
 srv_tune_lang() {
   case "${SRV_TUNE_LANG:-en}" in
-    fa) printf 'fa\n' ;;
-    *) printf 'en\n' ;;
+  fa) printf 'fa\n' ;;
+  *) printf 'en\n' ;;
   esac
 }
 

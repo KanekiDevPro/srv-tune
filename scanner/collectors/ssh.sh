@@ -9,10 +9,10 @@ collect_ssh() {
     local t
     t="$(sshd -T 2>/dev/null || printf '')"
     if [[ -n "$t" ]]; then
-      port="$(printf '%s' "$t" | grep -Ei '^port ' | head -n 1 | awk '{print $2}')"
-      root="$(printf '%s' "$t" | grep -Ei '^permitrootlogin ' | head -n 1 | awk '{print $2}')"
-      pass="$(printf '%s' "$t" | grep -Ei '^passwordauthentication ' | head -n 1 | awk '{print $2}')"
-      [[ -z "$port" ]] && port="22"
+      port="$(printf '%s' "$t" | grep -Ei '^port ' | head -n 1 | awk '{print $2}' || true)"
+      root="$(printf '%s' "$t" | grep -Ei '^permitrootlogin ' | head -n 1 | awk '{print $2}' || true)"
+      pass="$(printf '%s' "$t" | grep -Ei '^passwordauthentication ' | head -n 1 | awk '{print $2}' || true)"
+      if [[ -z "$port" ]]; then port="22"; fi
     fi
     sshd -t 2>/dev/null && ok="yes" || ok="no"
   fi

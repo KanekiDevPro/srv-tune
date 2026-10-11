@@ -11,6 +11,7 @@ __SRV_TUNE_COMMON_SOURCED=1
 
 SRV_TUNE_NAME="srv-tune"
 SRV_TUNE_VERSION="$(cat "${SRV_TUNE_ROOT:-.}/VERSION" 2>/dev/null || echo "0.1.0")"
+export SRV_TUNE_NAME SRV_TUNE_VERSION
 readonly SRV_TUNE_NAME SRV_TUNE_VERSION
 
 : "${SRV_TUNE_STATE_DIR:=/var/lib/srv-tune}"

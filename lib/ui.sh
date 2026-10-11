@@ -21,8 +21,8 @@ ui_confirm_default_yes() {
   local ans=""
   IFS= read -r ans || true
   case "$ans" in
-    [nN]|[nN][oO]) return 1 ;;
-    *) return 0 ;;
+  [nN] | [nN][oO]) return 1 ;;
+  *) return 0 ;;
   esac
 }
 

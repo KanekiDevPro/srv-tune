@@ -12,8 +12,8 @@ collect_fw() {
     fw="iptables"
   fi
   if command -v ss >/dev/null 2>&1; then
-    ports="$(ss -tlnp 2>/dev/null | awk 'NR>1{print $4}' | tr '\n' ',' | sed -E 's/,$//')"
-    [[ -z "$ports" ]] && ports="none"
+    ports="$(ss -tlnp 2>/dev/null | awk 'NR>1{print $4}' | tr '\n' ',' | sed -E 's/,$//' || true)"
+    if [[ -z "$ports" ]]; then ports="none"; fi
   fi
   if systemctl is-active fail2ban >/dev/null 2>&1; then
     f2b="yes"

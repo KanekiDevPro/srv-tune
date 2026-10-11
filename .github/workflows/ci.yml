@@ -1,24 +1,44 @@
 name: ci
 on: [push, pull_request]
 jobs:
-  lint-test:
-    strategy:
-      matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04]
-        include:
-          - os: debian-12
-            runner: ubuntu-24.04
-          - os: debian-13
-            runner: ubuntu-24.04
-    runs-on: ${{ matrix.runner || matrix.os }}
+  hygiene:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: ShellCheck
+      - name: CRLF and exec-bit gate
+        run: bash tests/hygiene.sh
+  lint-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck shfmt bats
-          shellcheck optimizer.sh lib/*.sh lib/i18n/*.sh scanner/*.sh scanner/collectors/*.sh
+      - name: ShellCheck
+        run: shellcheck -S warning optimizer.sh lib/*.sh lib/i18n/*.sh scanner/scan.sh scanner/report.sh scanner/collectors/*.sh tests/*.sh tests/*.bash tests/*.bats tests/vm/*.sh
       - name: shfmt
-        run: shfmt -d optimizer.sh lib scanner
+        run: shfmt -d -i 2 optimizer.sh lib scanner tests
       - name: bats
         run: bats tests/
+  scan-matrix:
+    strategy:
+      matrix:
+        image: [ubuntu:22.04, ubuntu:24.04, ubuntu:26.04, debian:12, debian:13]
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ matrix.image }}
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          (apt-get update -qq && apt-get install -y -qq bash curl iproute2 procps bats sudo systemd openssh-server 2>/dev/null) || true
+      - name: Scanner as root and non-root, next to manual commands
+        run: bash tests/vm/capture-scan.sh artifacts
+      - name: Assert scan quality (no false unknown on real Linux)
+        run: bash tests/vm/assert-scan.sh artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scan-${{ matrix.image }}
+          path: artifacts/

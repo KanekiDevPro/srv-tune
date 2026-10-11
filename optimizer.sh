@@ -41,66 +41,117 @@ EOF
 }
 
 PROFILE=""
-DRY_RUN=0
-ASSUME_YES=0
+DRY_RUN="${SRV_TUNE_DRY_RUN:-0}"
+ASSUME_YES="${SRV_TUNE_ASSUME_YES:-0}"
 FORCE=0
 JSON_OUT=""
 CMD=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    scan|recommend|apply|rollback|list-backups|status|benchmark|explain|audit|update|uninstall|confirm)
-      CMD="$1"; shift
-      if [[ "$CMD" == "explain" || "$CMD" == "rollback" || "$CMD" == "confirm" ]]; then
-        EXTRA="${1:-}"; shift || true
-        export EXTRA
-      fi
-      ;;
-    --profile) PROFILE="${2:-}"; shift 2 ;;
-    --dry-run) DRY_RUN=1; shift ;;
-    --yes) ASSUME_YES=1; export SRV_TUNE_ASSUME_YES=1; shift ;;
-    --force) FORCE=1; shift ;;
-    --lang) SRV_TUNE_LANG="${2:-en}"; export SRV_TUNE_LANG; shift 2 ;;
-    --json) JSON_OUT="${2:-}"; shift 2 ;;
-    --version|-V) printf 'srv-tune %s\n' "$VERSION"; exit 0 ;;
-    --help|-h) usage; exit 0 ;;
-    *) printf 'error: unknown arg: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+  scan | recommend | apply | rollback | list-backups | status | benchmark | explain | audit | update | uninstall | confirm)
+    CMD="$1"
+    shift
+    if [[ "$CMD" == "explain" || "$CMD" == "rollback" || "$CMD" == "confirm" ]]; then
+      EXTRA="${1:-}"
+      shift || true
+      export EXTRA
+    fi
+    ;;
+  --profile)
+    PROFILE="${2:-}"
+    shift 2
+    ;;
+  --dry-run)
+    DRY_RUN=1
+    export SRV_TUNE_DRY_RUN="$DRY_RUN"
+    shift
+    ;;
+  --yes)
+    ASSUME_YES=1
+    export SRV_TUNE_ASSUME_YES="$ASSUME_YES"
+    shift
+    ;;
+  --force)
+    FORCE=1
+    shift
+    ;;
+  --lang)
+    SRV_TUNE_LANG="${2:-en}"
+    export SRV_TUNE_LANG
+    shift 2
+    ;;
+  --json)
+    JSON_OUT="${2:-}"
+    shift 2
+    ;;
+  --version | -V)
+    printf 'srv-tune %s\n' "$VERSION"
+    exit 0
+    ;;
+  --help | -h)
+    usage
+    exit 0
+    ;;
+  *)
+    printf 'error: unknown arg: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
   esac
 done
 
-[[ -z "$CMD" ]] && { usage >&2; exit 2; }
+[[ -z "$CMD" ]] && {
+  usage >&2
+  exit 2
+}
 
 case "$CMD" in
-  scan)
-    lock_acquire || exit 1
-    export SRV_TUNE_JSON_OUT="$JSON_OUT"
-    bash "$SRV_TUNE_ROOT/scanner/scan.sh"
-    rc=$?
-    lock_release
-    exit $rc
-    ;;
-  recommend)
-    lock_acquire || exit 1
-    bash "$SRV_TUNE_ROOT/scanner/scan.sh" --recommend-only
-    rc=$?
-    lock_release
-    exit $rc
-    ;;
-  apply)
-    [[ -z "$PROFILE" ]] && { printf 'error: apply requires --profile X\n' >&2; exit 2; }
-    printf 'apply --profile %s is MVP-blocked (P3). Scanner + safety engine only in v0.1.\n' "$PROFILE" >&2
-    exit 3
-    ;;
-  rollback)
-    rollback_id "${EXTRA:-}" ;;
-  list-backups)
-    rollback_list ;;
-  status)
-    preflight_os_id; preflight_os_version; preflight_os_tier ;;
-  confirm)
-    guard_confirm "${EXTRA:-}" "$FORCE" ;;
-  explain|audit|benchmark|update|uninstall)
-    printf '%s: not yet implemented in v0.1 (MVP = scanner + backup/rollback)\n' "$CMD" >&2
-    exit 3
-    ;;
+scan)
+  lock_acquire || exit 1
+  # EXIT covers normal + error paths; INT/TERM cover Ctrl+C and kill.
+  # lock_release is idempotent, so double runs are safe.
+  trap lock_release EXIT INT TERM
+  export SRV_TUNE_JSON_OUT="$JSON_OUT"
+  bash "$SRV_TUNE_ROOT/scanner/scan.sh"
+  rc=$?
+  trap - EXIT INT TERM
+  lock_release
+  exit $rc
+  ;;
+recommend)
+  lock_acquire || exit 1
+  trap lock_release EXIT INT TERM
+  bash "$SRV_TUNE_ROOT/scanner/scan.sh" --recommend-only
+  rc=$?
+  trap - EXIT INT TERM
+  lock_release
+  exit $rc
+  ;;
+apply)
+  [[ -z "$PROFILE" ]] && {
+    printf 'error: apply requires --profile X\n' >&2
+    exit 2
+  }
+  printf 'apply --profile %s is MVP-blocked (P3). Scanner + safety engine only in v0.1.\n' "$PROFILE" >&2
+  exit 3
+  ;;
+rollback)
+  rollback_id "${EXTRA:-}"
+  ;;
+list-backups)
+  rollback_list
+  ;;
+status)
+  preflight_os_id
+  preflight_os_version
+  preflight_os_tier
+  ;;
+confirm)
+  guard_confirm "${EXTRA:-}" "$FORCE"
+  ;;
+explain | audit | benchmark | update | uninstall)
+  printf '%s: not yet implemented in v0.1 (MVP = scanner + backup/rollback)\n' "$CMD" >&2
+  exit 3
+  ;;
 esac

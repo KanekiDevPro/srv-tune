@@ -10,14 +10,16 @@ __SRV_TUNE_DETECT_SOURCED=1
 
 detect_virt() {
   if [[ -f /.dockerenv ]]; then
-    printf 'docker\n'; return 0
+    printf 'docker\n'
+    return 0
   fi
   if command -v systemd-detect-virt >/dev/null 2>&1; then
     systemd-detect-virt 2>/dev/null || printf 'bare\n'
     return 0
   fi
   if grep -qi 'openvz' /proc/self/status 2>/dev/null; then
-    printf 'openvz\n'; return 0
+    printf 'openvz\n'
+    return 0
   fi
   printf 'unknown\n'
 }
@@ -46,18 +48,24 @@ detect_disk_type() {
   for f in /sys/block/*/queue/rotational; do
     [[ -f "$f" ]] || continue
     case "$f" in
-      *nvme*|*vd*) printf 'NVMe\n'; return 0 ;;
+    *nvme* | *vd*)
+      printf 'NVMe\n'
+      return 0
+      ;;
     esac
     rot="$(cat "$f" 2>/dev/null || printf '')"
     if [[ "$rot" == "0" ]]; then
-      printf 'SSD\n'; return 0
+      printf 'SSD\n'
+      return 0
     fi
   done
   if ls /dev/nvme* >/dev/null 2>&1; then
-    printf 'NVMe\n'; return 0
+    printf 'NVMe\n'
+    return 0
   fi
   if [[ -n "$rot" ]]; then
-    printf 'HDD\n'; return 0
+    printf 'HDD\n'
+    return 0
   fi
   printf 'unknown\n'
 }

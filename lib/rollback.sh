@@ -28,8 +28,8 @@ rollback_id() {
     printf 'error: backup not found: %s\n' "$id" >&2
     return 1
   fi
-  local ts src bak
-  while IFS="$(printf '\t')" read -r ts src bak; do
+  local _ts src bak
+  while IFS="$(printf '\t')" read -r _ts src bak; do
     [[ -z "$src" ]] && continue
     if [[ "$bak" == "(absent)" ]]; then
       rm -f "$src"

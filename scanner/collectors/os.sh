@@ -6,11 +6,12 @@ collect_os() {
   local f="${OS_RELEASE_FILE:-/etc/os-release}"
   local id="unknown" ver="unknown"
   if [[ -f "$f" ]]; then
-    id="$(grep -E '^ID=' "$f" 2>/dev/null | tail -n 1 | cut -d= -f2 | tr -d '"')"
-    ver="$(grep -E '^VERSION_ID=' "$f" 2>/dev/null | tail -n 1 | cut -d= -f2 | tr -d '"')"
+    # || true: absent keys are not errors (grep-no-match under pipefail).
+    id="$(grep -E '^ID=' "$f" 2>/dev/null | tail -n 1 | cut -d= -f2 | tr -d '"' || true)"
+    ver="$(grep -E '^VERSION_ID=' "$f" 2>/dev/null | tail -n 1 | cut -d= -f2 | tr -d '"' || true)"
   fi
-  [[ -z "$id" ]] && id="unknown"
-  [[ -z "$ver" ]] && ver="unknown"
+  if [[ -z "$id" ]]; then id="unknown"; fi
+  if [[ -z "$ver" ]]; then ver="unknown"; fi
   local kernel="unknown" init="unknown" virt="unknown" cloud="no"
   kernel="$(uname -r 2>/dev/null || printf 'unknown')"
   if [[ -d /run/systemd/system ]]; then

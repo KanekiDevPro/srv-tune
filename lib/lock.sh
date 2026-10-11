@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Lock to prevent concurrent runs. flock if present, else mkdir fallback.
+# No silent fallbacks: TMPDIR is TEST-only (SRV_TUNE_TEST=1). In normal mode
+# a missing /run fails with a clear error. Root never uses world-writable
+# lock paths.
 # shellcheck shell=bash
 
 if [[ -n "${__SRV_TUNE_LOCK_SOURCED:-}" ]]; then
@@ -9,16 +12,38 @@ __SRV_TUNE_LOCK_SOURCED=1
 
 SRV_TUNE_LOCK_FD=""
 
-lock_acquire() {
+# lock_effective_file - prints the lock path, applying the TEST-only rule.
+lock_effective_file() {
   local lock_file="${SRV_TUNE_LOCK_FILE:-/run/srv-tune.lock}"
-  # Fall back when /run is missing or unwritable (containers, test envs).
-  if [[ "$lock_file" == "/run/"* ]] && ! mkdir -p "/run" 2>/dev/null; then
-    lock_file="${TMPDIR:-/tmp}/srv-tune.lock"
-    export SRV_TUNE_LOCK_FILE="$lock_file"
+  local parent
+  parent="$(dirname "$lock_file")"
+  if [[ -d "$parent" ]] && [[ -w "$parent" ]]; then
+    printf '%s\n' "$lock_file"
+    return 0
   fi
-  mkdir -p "$(dirname "$lock_file")" 2>/dev/null || true
+  if [[ "${SRV_TUNE_TEST:-0}" == "1" ]]; then
+    printf '%s/srv-tune-test-%s.lock\n' "${TMPDIR:-/tmp}" "$(id -u 2>/dev/null || printf 'x')"
+    return 0
+  fi
+  printf 'error: lock dir %s is missing or unwritable.\n' "$parent" >&2
+  printf 'error: run as root, or set SRV_TUNE_LOCK_FILE to a writable path.\n' >&2
+  printf 'error: TMPDIR fallback is TEST-only (SRV_TUNE_TEST=1).\n' >&2
+  return 1
+}
+
+lock_acquire() {
+  local lock_file
+  lock_file="$(lock_effective_file)" || return 1
+  export SRV_TUNE_LOCK_FILE="$lock_file"
+  local parent
+  parent="$(dirname "$lock_file")"
+  # shellcheck disable=SC1091
+  source "$(dirname "${BASH_SOURCE[0]}")/util.sh"
+  refuse_world_writable "$parent" "lock dir" || return 1
+  mkdir -p "$parent" 2>/dev/null || true
   local lock_dir="${lock_file}.d"
-  if command -v flock >/dev/null 2>&1; then
+  # Backend override (tests, flock-less containers). Default: auto.
+  if [[ "${SRV_TUNE_LOCK_BACKEND:-auto}" != "mkdir" ]] && command -v flock >/dev/null 2>&1; then
     exec 9>"$lock_file" 2>/dev/null || return 1
     if ! flock -n 9; then
       printf 'error: another srv-tune run is active (%s)\n' "$lock_file" >&2

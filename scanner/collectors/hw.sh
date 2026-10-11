@@ -12,13 +12,16 @@ collect_hw() {
   fi
   ram="$(awk '/^MemTotal:/{print $2}' /proc/meminfo 2>/dev/null || printf '0')"
   swap="$(awk '/^SwapTotal:/{print $2}' /proc/meminfo 2>/dev/null || printf '0')"
-  [[ -z "$ram" ]] && ram="0"
-  [[ -z "$swap" ]] && swap="0"
+  if [[ -z "$ram" ]]; then ram="0"; fi
+  if [[ -z "$swap" ]]; then swap="0"; fi
   local f rot=""
   for f in /sys/block/*/queue/rotational; do
     [[ -f "$f" ]] || continue
     case "$f" in
-      *nvme*|*vda*) disk="NVMe"; break ;;
+    *nvme* | *vda*)
+      disk="NVMe"
+      break
+      ;;
     esac
     rot="$(cat "$f" 2>/dev/null || printf '')"
     if [[ "$rot" == "0" ]]; then disk="SSD"; else disk="HDD"; fi
@@ -26,8 +29,8 @@ collect_hw() {
   if [[ "$disk" == "unknown" ]] && ls /dev/nvme* >/dev/null 2>&1; then
     disk="NVMe"
   fi
-  free="$(df -k / 2>/dev/null | awk 'NR==2{print $4}')"
-  [[ -z "$free" ]] && free="0"
+  free="$(df -k / 2>/dev/null | awk 'NR==2{print $4}' || true)"
+  if [[ -z "$free" ]]; then free="0"; fi
   printf 'CPU_CORES=%s\nAES_NI=%s\nRAM_KB=%s\nSWAP_KB=%s\nDISK_TYPE=%s\nDISK_FREE_KB=%s\n' \
     "$cores" "$aes" "$ram" "$swap" "$disk" "$free"
 }
