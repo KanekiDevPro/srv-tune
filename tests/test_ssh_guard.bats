@@ -85,7 +85,7 @@ EOF
     bash -c 'source "$1"; guard_start g1 1' bash "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
   [ "$status" -eq 0 ]
   local _try
-  for _try in $(seq 1 50); do
+  for _try in $(seq 1 100); do
     [[ "$(cat "$target")" == "original" ]] && break
     sleep 0.1
   done
@@ -110,7 +110,7 @@ EOF
 @test "guard survives parent kill -9 (independence from the session)" {
   local stubs
   stubs="$(_make_stubs)"
-  local session="$SRV_TUNE_TMP/session.sh"
+  local session="$SRV_TUNE_TMP/session.sh" ready="$SRV_TUNE_TMP/k9.ready"
   cat >"$session" <<EOF
 source "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
 export SRV_TUNE_STATE_DIR="$SRV_TUNE_STATE_DIR"
@@ -118,15 +118,25 @@ export SSH_TTY=/dev/pts/5
 export PATH="$stubs:$PATH"
 export SRV_TUNE_GUARD_BACKEND=systemd
 guard_start k9 300 >/dev/null
+printf 'ready\n' >"$ready"
 sleep 30
 EOF
   bash "$session" &
   local pid=$!
-  local _try
-  for _try in $(seq 1 50); do
-    [[ -f "$SRV_TUNE_STATE_DIR/guard/origin-k9.tty" ]] && break
+  local _try ready_ok
+  ready_ok=0
+  for _try in $(seq 1 100); do
+    if [[ -f "$ready" ]]; then
+      ready_ok=1
+      break
+    fi
     sleep 0.1
   done
+  if [[ "$ready_ok" != "1" ]]; then
+    kill -9 "$pid" 2>/dev/null || true
+    printf 'session never finished arming the guard\n' >&2
+    return 1
+  fi
   # The whole session dies violently; the scheduled timer must already exist.
   kill -9 "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
