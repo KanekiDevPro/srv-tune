@@ -1,0 +1,12 @@
+[Unit]
+Description=srv-tune autossh tunnel (%i)
+After=network-online.target
+
+[Service]
+User=autossh
+ExecStart=/usr/bin/autossh -M 0 -N -o ServerAliveInterval=30 -o ServerAliveCountMax=3 %i
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

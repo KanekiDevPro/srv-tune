@@ -1,0 +1,5 @@
+# Ubuntu archive mirrors benchmarked live with curl timing.
+# Format: <url> <label>
+http://archive.ubuntu.com/ubuntu/ ubuntu-main
+http://ir.archive.ubuntu.com/ubuntu/ ubuntu-ir
+http://mirror.hetzner.com/ubuntu/ hetzner

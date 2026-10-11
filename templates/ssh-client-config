@@ -1,0 +1,6 @@
+# srv-tune ssh client template (generated per TUNNEL mode in P3).
+Host tune-tunnel
+    HostName EXAMPLE_HOST
+    User tunnel
+    PermitLocalCommand no
+    Compression no

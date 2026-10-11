@@ -1,0 +1,4 @@
+# Debian mirrors benchmarked live with curl timing.
+http://deb.debian.org/debian/ debian-main
+http://mirror.hetzner.com/debian/ hetzner
+http://ftp.ir.debian.org/debian/ debian-ir

@@ -1,0 +1,24 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  lint-test:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04]
+        include:
+          - os: debian-12
+            runner: ubuntu-24.04
+          - os: debian-13
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner || matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck shfmt bats
+          shellcheck optimizer.sh lib/*.sh lib/i18n/*.sh scanner/*.sh scanner/collectors/*.sh
+      - name: shfmt
+        run: shfmt -d optimizer.sh lib scanner
+      - name: bats
+        run: bats tests/

@@ -1,0 +1,3 @@
+# pip mirrors (opt-in, P3).
+https://pypi.org/simple/ pypi-main
+https://mirror-pypi.runflare.com/simple/ runflare-ir

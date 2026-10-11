@@ -1,0 +1,3 @@
+# npm mirrors (opt-in, P3).
+https://registry.npmjs.org/ npm-main
+https://registry.yarnpkg.com/ yarn-fallback

@@ -1,0 +1,8 @@
+# Public DNS resolvers benchmarked live (latency + failure rate).
+# Format: <ip> <label>
+1.1.1.1 cloudflare
+8.8.8.8 google
+9.9.9.9 quad9
+77.88.8.8 yandex
+178.22.122.100 shecan
+185.51.200.2 electrotm
