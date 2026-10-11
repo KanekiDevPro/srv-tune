@@ -42,24 +42,31 @@ Consequence: the mirror module (P3) must read BOTH formats and must never
 delete either file — only add/replace its own drop-in + `Enabled:` flips via
 backup. Our `collect_net` already detects both. Design stands.
 
-## 4. Default qdisc — CONFIRMED with nuance
+## 4. Default qdisc — CONFIRMED with nuance (corrected)
 
 Sources: `tc(8)` (man7.org): "pfifo_fast qdisc is the automatic default in
 the absence of a configured qdisc." Launchpad bug #2003027: Ubuntu images
 expect `net.core.default_qdisc=fq_codel` on VMs.
-Consequence: kernel fallback is pfifo_fast; Ubuntu configures fq_codel.
-Our network module (P3) must READ the current qdisc (`tc qdisc show`) and
-never assume; with BBR it must set `fq` explicitly. Design stands.
+Correction: do NOT claim "Ubuntu sets fq_codel" as a distro fact — on some
+images the value comes from systemd's sysctl defaults
+(`systemd-sysctl` ships `50-default.conf`-style defaults that distributions
+can override), and Debian 13 behavior is UNVERIFIED until the scan-matrix
+runs there. Rule: the scanner ALWAYS reads the real value
+(`tc qdisc show` in `collect_net`); the network module (P3) branches on the
+observed value and sets `fq` explicitly when enabling BBR. No assumptions
+anywhere.
 
-## 5. chrony vs systemd-timesyncd — CONFIRMED
+## 5. chrony vs systemd-timesyncd — CONFIRMED (with NTS rule)
 
 Sources: Ubuntu Server docs "timedatectl and timesyncd": Ubuntu <= 24.04
 default is systemd-timesyncd; "replaced by chrony since Ubuntu 25.10"
-(so 26.04 default = chrony, with NTS). Debian 12/13 default =
-systemd-timesyncd; chrony optional.
-Consequence: the kernel/resources module (P3) must DETECT the active
-service (`systemctl is-active chrony || systemd-timesyncd`) and configure
-only that one; never install/remove either. Design stands.
+(so 26.04 default = chrony with NTS; timesyncd is NOT installed there).
+Debian 12/13 default = systemd-timesyncd; chrony optional.
+Rules for the time module (P3): DETECT the active daemon
+(`systemctl is-active chrony` vs `systemd-timesyncd`) and configure only
+that one; NEVER replace NTS sources with non-NTS ones (downgrade attack
+surface); SKIP time configuration entirely in containers (no clock control);
+never install/remove either daemon. Design stands.
 
 ## 6. sudo-rs — CONFIRMED (behavior), OPEN (edge flags)
 
@@ -71,12 +78,15 @@ sudoers snippets to the common subset and validate with `visudo -c`.
 OPEN: exact `visudo -c` availability under sudo-rs, verified on the 26.04
 scan-matrix VM before P3 writes any sudoers file.
 
-## 7. uutils coreutils — PARTIAL
+## 7. uutils coreutils — CI-GATED (was: partial)
 
 Sources: uutils project (drop-in goal; deviations treated as bugs), Ubuntu
 26.04 ships uutils coreutils with GNU still installable; community reports
 of edge-flag differences.
 Our posture (already in code): POSIX-only flags everywhere (`grep -E` not
 `-P`, `sed -E` not `-r`, no `stat -c`, `ls -ld` parsing instead of stat).
-OPEN: empirical run — the 26.04 scan-matrix CI job is the gate; any failure
-there is fixed before P3.
+Gate: the `uutils-check` CI job (container `ubuntu:26.04`) records the
+`ls --version` / `sudo --version` flavors, runs the FULL bats suite plus a
+scanner smoke on uutils coreutils, and fails the build on any deviation.
+Until that job is green, P3 module work treats 26.04 as unverified for
+shell-behavior edge cases (no new non-POSIX constructs without a test).
