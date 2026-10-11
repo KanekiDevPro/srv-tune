@@ -25,7 +25,7 @@ cleanup() {
   systemctl stop 'srv-tune-guard-g1.timer' >/dev/null 2>&1 || true
   systemctl stop 'srv-tune-guard-g2.timer' >/dev/null 2>&1 || true
   systemctl stop 'srv-tune-guard-g3.timer' >/dev/null 2>&1 || true
-  rm -rf "$SRV_TUNE_STATE_DIR"
+  rm -rf "${SRV_TUNE_STATE_DIR:-/nonexistent-srv-tune-state}" 2>/dev/null || true
 }
 trap cleanup EXIT
 

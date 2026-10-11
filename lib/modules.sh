@@ -123,7 +123,8 @@ run_apply() {
     rc=$?
     if [[ "$rc" == "2" ]]; then
       printf 'skip: %s has nothing to do here (see notes above)\n' "$m"
-      rm -rf "$dir"
+      # Own fresh dir (just mkdir'd above): rmdir, never rm -rf.
+      rmdir "$dir" 2>/dev/null || true
       continue
     fi
     if [[ "$rc" -ne 0 ]]; then

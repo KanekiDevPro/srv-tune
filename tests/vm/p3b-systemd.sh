@@ -33,7 +33,7 @@ mkdir -p "$SRV_TUNE_STATE_DIR/backups"
 
 cleanup() {
   pkill -f "sshd.*srv-p3b" 2>/dev/null || true
-  rm -rf "$SRV_TUNE_SYSROOT"
+  rm -rf "${SRV_TUNE_SYSROOT:-/nonexistent-srv-tune-sysroot}" 2>/dev/null || true
 }
 trap cleanup EXIT
 

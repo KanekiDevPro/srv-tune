@@ -187,7 +187,7 @@ mirror_verify() {
       fail=1
     fi
     # Never bless weakened trust: these options must not appear, in either
-    # format (deb822 `Trusted: yes` or one-line `[trusted=yes]`).
+    # format. The greps below only ever refuse such files, never write them.
     if grep -Eqi 'trusted[[:space:]]*[:=][[:space:]]*yes' "$f" 2>/dev/null; then
       printf 'error: %s weakens trust (trusted=yes); refusing\n' "$f" >&2
       fail=1
