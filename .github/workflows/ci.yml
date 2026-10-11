@@ -81,8 +81,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
+      - name: Install integration deps (binaries only, nothing enabled)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq openssh-server iproute2 nftables ufw
       - name: Guard integration with real systemd-run
         run: sudo bash tests/vm/guard-systemd.sh
+      - name: P3b integration (real sshd/nft, temp files and port 22222 only)
+        run: sudo bash tests/vm/p3b-systemd.sh
   uutils-check:
     # Resolves the P2a "half-verified" item empirically on 26.04.
     runs-on: ubuntu-24.04

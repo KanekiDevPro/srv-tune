@@ -58,6 +58,28 @@ profile_modules() {
   done
 }
 
+# profile_env <profile> - export profile settings (ssh_mode, ...) as
+# SRV_TUNE_* vars for modules. Only simple KEY=value lines; modules= ignored.
+profile_env() {
+  local profile="$1" root="${SRV_TUNE_ROOT:-.}" file line k v
+  file="$root/profiles/$profile.conf"
+  [[ -f "$file" ]] || return 1
+  while IFS= read -r line; do
+    case "$line" in
+    '' | \#* | modules=*) continue ;;
+    esac
+    k="$(printf '%s' "$line" | cut -d= -f1)"
+    v="$(printf '%s' "$line" | cut -d= -f2- | tr -d '"')"
+    case "$k" in
+    '' | *[!A-Za-z_]*) continue ;;
+    esac
+    k="$(printf '%s' "$k" | tr 'a-z' 'A-Z')"
+    export "SRV_TUNE_$k=$v"
+  done <"$file"
+  export SRV_TUNE_PROFILE="$profile"
+  return 0
+}
+
 # run_apply <profile> <only_csv> - full APPLY with auto-rollback. Stops at
 # the first failing module; earlier modules stay applied (each verified).
 run_apply() {
@@ -69,6 +91,7 @@ run_apply() {
   # shellcheck disable=SC1091
   source "$(dirname "${BASH_SOURCE[0]}")/rollback.sh"
   state_init || return 1
+  profile_env "$profile" || return 1
   local ran=0
   while IFS= read -r m; do
     [[ -z "$m" ]] && continue
@@ -80,7 +103,7 @@ run_apply() {
         printf 'error: unknown module: %s\n' "$m" >&2
         return 1
       fi
-      printf 'skip: module %s is outside P3a scope\n' "$m"
+      printf 'skip: module %s is not implemented yet\n' "$m"
       continue
     fi
     module_load "$m" || return 1
