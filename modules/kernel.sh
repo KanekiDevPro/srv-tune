@@ -9,7 +9,13 @@ kernel_mem_kb() {
 }
 
 kernel_swappiness() {
-  printf '10\n'
+  # Profile-dependent: high swappiness feeds compressed zram swap on low-RAM
+  # machines; low swappiness keeps servers off disk swap otherwise.
+  if kernel_zram_ok 2>/dev/null; then
+    printf '100\n'
+  else
+    printf '10\n'
+  fi
 }
 
 # kernel_journal_cap - 10% of free disk on the state fs, clamped 100M..4G.
@@ -82,7 +88,7 @@ kernel_detect() {
 }
 
 kernel_recommend() {
-  printf 'vm.swappiness=10 (why: server default, less swap thrash)\n'
+  printf 'vm.swappiness=%s (why: 100 with zram on low RAM, else server default 10)\n' "$(kernel_swappiness)"
   printf 'journald SystemMaxUse=%s (why: 10%% free disk, clamped 100M-4G)\n' "$(kernel_journal_cap)"
   local mem
   mem="$(kernel_mem_kb)"

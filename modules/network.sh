@@ -72,11 +72,19 @@ network_bbr_ok() {
 
 # network_values - prints "key=value" lines this machine supports.
 network_values() {
-  local mem buf
+  local mem buf speed bdp
   mem="$(network_mem_kb)"
   [[ "$mem" =~ ^[0-9]+$ ]] || mem=0
-  # buf: RAM/16 clamped to 4MB..256MB (why: BDP headroom without waste).
+  speed="$(network_nic_speed)"
+  [[ "$speed" =~ ^[0-9]+$ ]] || speed=1000
+  # buf: RAM/16, additionally capped by link BDP (200ms RTT). Link speeds
+  # above 40Gbps are distrusted (virtual NICs report bogus values) and the
+  # RAM share alone governs. Clamped to 4MB..256MB.
   buf=$((mem * 1024 / 16))
+  if [[ "$speed" -le 40000 ]]; then
+    bdp=$((speed * 25000))
+    if [[ "$bdp" -lt "$buf" ]]; then buf="$bdp"; fi
+  fi
   if [[ "$buf" -lt 4194304 ]]; then buf=4194304; fi
   if [[ "$buf" -gt 268435456 ]]; then buf=268435456; fi
   local lines=""
@@ -122,7 +130,7 @@ network_recommend() {
   local mem speed
   mem="$(network_mem_kb)"
   speed="$(network_nic_speed)"
-  printf 'TCP buffers from %s kB RAM (why: BDP headroom, clamped 4-256MB)\n' "$mem"
+  printf 'TCP buffers from %s kB RAM and %s Mbps NIC (why: RAM/16 capped by 200ms BDP; >40Gbps links distrusted on VMs; clamped 4-256MB)\n' "$mem" "$speed"
   printf 'NIC speed %s Mbps (why: shapes buffer choice; override SRV_TUNE_NIC_SPEED_MBPS)\n' "$speed"
   if network_bbr_ok; then
     printf 'enable BBR+fq (why: kernel offers bbr, higher throughput)\n'

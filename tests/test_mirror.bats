@@ -85,6 +85,32 @@ EOF
   grep -q "deb.debian.org" "$SRV_TUNE_SYSROOT/etc/apt/sources.list.d/debian.sources"
 }
 
+@test "mirror verify refuses trusted=yes and allow-insecure" {
+  _setup_mirror ok 0
+  printf 'Types: deb\nURIs: http://mirror.hetzner.com/debian\nSuites: stable\nComponents: main\nTrusted: yes\n' \
+    >"$SRV_TUNE_SYSROOT/etc/apt/sources.list.d/debian.sources"
+  run mirror_verify
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"trusted=yes"* ]]
+  printf 'deb [trusted=yes] http://mirror.hetzner.com/debian stable main\n' \
+    >"$SRV_TUNE_SYSROOT/etc/apt/sources.list"
+  run mirror_verify
+  [ "$status" -ne 0 ]
+  printf 'deb http://mirror.hetzner.com/debian stable main\n' >"$SRV_TUNE_SYSROOT/etc/apt/sources.list"
+  printf 'Types: deb\nURIs: http://mirror.hetzner.com/debian\nSuites: stable\nComponents: main\nAllow-Insecure: yes\n' \
+    >"$SRV_TUNE_SYSROOT/etc/apt/sources.list.d/debian.sources"
+  run mirror_verify
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"allow-insecure"* ]]
+}
+
+@test "mirror recommend warns when no security suite exists" {
+  _setup_mirror ok 0
+  run mirror_suite_warn
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no security suite"* ]]
+}
+
 @test "mirror dry-run writes nothing" {
   _setup_mirror ok 0
   d="$SRV_TUNE_STATE_DIR/backups/m9"

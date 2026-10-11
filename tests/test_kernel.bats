@@ -23,13 +23,27 @@ EOF
   module_load kernel
 }
 
-@test "kernel swappiness drop-in follows server default" {
+@test "kernel swappiness follows server default without zram" {
   _setup_kernel
   d="$SRV_TUNE_STATE_DIR/backups/k1"
   mkdir -p "$d"
   run kernel_apply "$d"
   [ "$status" -eq 0 ]
   grep -q "vm.swappiness=10" "$SRV_TUNE_SYSROOT/etc/sysctl.d/00-srv-tune.conf"
+  run kernel_verify
+  [ "$status" -eq 0 ]
+}
+
+@test "kernel swappiness is 100 and zram configured on low RAM with tooling" {
+  _setup_kernel
+  printf '#!/usr/bin/env bash\nexit 0\n' >"$SRV_TUNE_TMP/stubbin/zramctl"
+  chmod +x "$SRV_TUNE_TMP/stubbin/zramctl"
+  d="$SRV_TUNE_STATE_DIR/backups/kz"
+  mkdir -p "$d"
+  run kernel_apply "$d"
+  [ "$status" -eq 0 ]
+  grep -q "vm.swappiness=100" "$SRV_TUNE_SYSROOT/etc/sysctl.d/00-srv-tune.conf"
+  [ -f "$SRV_TUNE_SYSROOT/etc/systemd/zram-generator.conf" ]
   run kernel_verify
   [ "$status" -eq 0 ]
 }

@@ -3,7 +3,8 @@ set -u
 fail=0
 while IFS= read -r f; do
   case "$f" in
-  *.sh | *.bash | *.bats) ;;
+  # .bats uses the @test idiom: parsed by bats and shellcheck, not bash -n.
+  *.sh | *.bash) ;;
   *) continue ;;
   esac
   if bash -n "$f"; then

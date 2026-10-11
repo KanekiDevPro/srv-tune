@@ -7,8 +7,15 @@
 # shellcheck shell=bash
 
 dns_tool() {
+  # SRV_TUNE_DNS_TOOL overrides auto-detect (tests force the drill path).
+  if [[ -n "${SRV_TUNE_DNS_TOOL:-}" ]]; then
+    printf '%s\n' "$SRV_TUNE_DNS_TOOL"
+    return 0
+  fi
   if command -v dig >/dev/null 2>&1; then
     printf 'dig\n'
+  elif command -v drill >/dev/null 2>&1; then
+    printf 'drill\n'
   else
     printf 'none\n'
   fi
@@ -31,10 +38,16 @@ dns_candidates() {
   done <"$f"
 }
 
-# dns_probe_one <ip> <probe> <out> - single dig probe; appends "ip ms ok|fail".
+# dns_probe_one <ip> <probe> <out> - single probe via dig (or drill
+# fallback); appends "ip ms ok|fail". drill carries its own retry budget.
 dns_probe_one() {
-  local ip="$1" probe="$2" out="$3" txt ms
-  txt="$(dig +time=2 +tries=1 "@$ip" "$probe" 2>/dev/null || true)"
+  local ip="$1" probe="$2" out="$3" txt ms tool
+  tool="$(dns_tool)"
+  if [[ "$tool" == "drill" ]]; then
+    txt="$(drill "$probe" "@$ip" 2>/dev/null || true)"
+  else
+    txt="$(dig +time=2 +tries=1 "@$ip" "$probe" 2>/dev/null || true)"
+  fi
   if printf '%s' "$txt" | grep -q 'IN A'; then
     ms="$(printf '%s' "$txt" | grep 'Query time' | grep -o '[0-9][0-9]* msec' | awk '{print $1}' | head -n 1)"
     [[ -z "$ms" ]] && ms=9999
@@ -108,7 +121,7 @@ dns_detect() {
 
 dns_recommend() {
   if [[ "$(dns_tool)" == "none" ]]; then
-    printf 'skip: no dig installed (why: cannot benchmark; install dnsutils or set resolvers manually)\n'
+    printf 'skip: neither dig nor drill installed (why: cannot benchmark; install dnsutils/ldnsutils or set resolvers manually)\n'
     return 0
   fi
   printf 'benchmark (why: latency + failure rate from THIS server):\n'
@@ -119,7 +132,7 @@ dns_recommend() {
 dns_apply() {
   local backup_dir="$1" backend winners w1 w2 tmp
   if [[ "$(dns_tool)" == "none" ]]; then
-    printf 'skip: no dig, nothing to benchmark\n'
+    printf 'skip: neither dig nor drill, nothing to benchmark\n'
     return 2
   fi
   # shellcheck disable=SC1091

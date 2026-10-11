@@ -186,10 +186,22 @@ mirror_verify() {
       printf 'error: invalid apt file after apply: %s\n' "$f" >&2
       fail=1
     fi
+    # Never bless weakened trust: these options must not appear, in either
+    # format (deb822 `Trusted: yes` or one-line `[trusted=yes]`).
+    if grep -Eqi 'trusted[[:space:]]*[:=][[:space:]]*yes' "$f" 2>/dev/null; then
+      printf 'error: %s weakens trust (trusted=yes); refusing\n' "$f" >&2
+      fail=1
+    fi
+    if grep -Eqi 'allow-insecure' "$f" 2>/dev/null; then
+      printf 'error: %s weakens trust (allow-insecure); refusing\n' "$f" >&2
+      fail=1
+    fi
   done < <(mirror_apt_files)
   if [[ "$fail" -ne 0 ]]; then
     return 1
   fi
+  mirror_suite_warn || true
+  mirror_freshness_warn || true
   if [[ "${SRV_TUNE_TEST:-0}" == "1" && "${SRV_TUNE_FORCE_LIVE_VERIFY:-0}" != "1" ]]; then
     return 0
   fi
@@ -198,6 +210,33 @@ mirror_verify() {
       printf 'error: apt-get update failed after mirror apply\n' >&2
       return 1
     fi
+  fi
+  return 0
+}
+
+# mirror_suite_warn - security suite should be configured somewhere.
+mirror_suite_warn() {
+  local found=0 f
+  while IFS= read -r f; do
+    if grep -Eq '\-security|/security|security\.debian\.org|ubuntu.*security|esm' "$f" 2>/dev/null; then
+      found=1
+    fi
+  done < <(mirror_apt_files)
+  if [[ "$found" == "0" ]]; then
+    printf 'warn: no security suite configured in apt sources (why: security updates need a security line)\n'
+  fi
+  return 0
+}
+
+# mirror_freshness_warn - apt lists older than 7 days suggest a stale mirror.
+mirror_freshness_warn() {
+  local stamp
+  stamp="$(sys_p /var/lib/apt/periodic/update-stamp)"
+  if [[ ! -f "$stamp" ]]; then
+    return 0
+  fi
+  if find "$stamp" -mtime +7 2>/dev/null | grep -q .; then
+    printf 'warn: apt update stamp is older than 7 days (why: mirror may be stale)\n'
   fi
   return 0
 }

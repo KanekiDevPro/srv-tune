@@ -87,6 +87,28 @@ EOF
   [ "$status" -ne 0 ]
 }
 
+@test "network distrusts absurd VM link speeds (RAM share governs)" {
+  _setup_net none
+  export SRV_TUNE_NIC_SPEED_MBPS=100000
+  d="$SRV_TUNE_STATE_DIR/backups/n5"
+  mkdir -p "$d"
+  run network_apply "$d"
+  [ "$status" -eq 0 ]
+  grep -q "net.core.rmem_max=268435456" "$SRV_TUNE_SYSROOT/etc/sysctl.d/00-srv-tune.conf"
+  unset SRV_TUNE_NIC_SPEED_MBPS
+}
+
+@test "network caps buffers by link BDP on slow links" {
+  _setup_net none
+  export SRV_TUNE_NIC_SPEED_MBPS=10
+  d="$SRV_TUNE_STATE_DIR/backups/n6"
+  mkdir -p "$d"
+  run network_apply "$d"
+  [ "$status" -eq 0 ]
+  grep -q "net.core.rmem_max=4194304" "$SRV_TUNE_SYSROOT/etc/sysctl.d/00-srv-tune.conf"
+  unset SRV_TUNE_NIC_SPEED_MBPS
+}
+
 @test "network dry-run writes nothing" {
   _setup_net none
   d="$SRV_TUNE_STATE_DIR/backups/n9"

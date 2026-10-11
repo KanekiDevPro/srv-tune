@@ -81,6 +81,23 @@ EOF
   grep -q "^nameserver 9.9.9.9" "$SRV_TUNE_SYSROOT/etc/resolv.conf"
 }
 
+@test "dns falls back to drill when dig is missing" {
+  _setup_dns ok resolv.conf
+  cat >"$SRV_TUNE_TMP/stubbin/drill" <<'EOF'
+#!/usr/bin/env bash
+printf ';; ANSWER SECTION:\nprobe.invalid. 300 IN A 192.0.2.1\n;; Query time: 9 msec\n'
+EOF
+  chmod +x "$SRV_TUNE_TMP/stubbin/drill"
+  export SRV_TUNE_DNS_TOOL=drill
+  run dns_tool
+  [ "$status" -eq 0 ]
+  [[ "$output" == "drill" ]]
+  run dns_benchmark
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"contacting resolvers:"* ]]
+  unset SRV_TUNE_DNS_TOOL
+}
+
 @test "dns refuses cloud-init managed resolv.conf" {
   _setup_dns ok resolv.conf
   mkdir -p "$SRV_TUNE_SYSROOT/etc/cloud"
