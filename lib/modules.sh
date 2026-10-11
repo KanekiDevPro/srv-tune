@@ -88,7 +88,14 @@ run_apply() {
     id="$(new_backup_id)"
     dir="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}/backups/$id"
     mkdir -p "$dir" || return 1
-    if ! "${m}_apply" "$dir"; then
+    "${m}_apply" "$dir"
+    rc=$?
+    if [[ "$rc" == "2" ]]; then
+      printf 'skip: %s has nothing to do here (see notes above)\n' "$m"
+      rm -rf "$dir"
+      continue
+    fi
+    if [[ "$rc" -ne 0 ]]; then
       printf 'error: %s apply failed; nothing was kept\n' "$m" >&2
       return 1
     fi
