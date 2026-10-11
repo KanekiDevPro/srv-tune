@@ -256,6 +256,9 @@ ssh_recommend() {
     fi
   fi
   printf 'guard + NEW-session confirm required (why: reverts on silence)\n'
+  if [[ "$(ssh_mode)" == "TUNNEL" && "${SRV_TUNE_TUNNEL_MODE:-}" == "tun" && "${SRV_TUNE_PROFILE:-}" == "vpn-tunnel" ]]; then
+    printf 'tun forwarding: ip_forward drop-in (why: vpn-tunnel profile only; NAT is an operator step)\n'
+  fi
 }
 
 # ssh_firewall_first <port> - open the port before touching sshd.
@@ -394,6 +397,17 @@ ssh_apply() {
       return 1
     fi
     rm -f "$tmp"
+  fi
+  if [[ "$mode" == "TUNNEL" && "${SRV_TUNE_TUNNEL_MODE:-}" == "tun" && "${SRV_TUNE_PROFILE:-}" == "vpn-tunnel" ]]; then
+    # Forwarding knobs live ONLY here: tun mode in the vpn-tunnel profile.
+    tmp="$(mktemp)"
+    printf '# srv-tune tun forwarding (why: vpn-tunnel profile only)\nnet.ipv4.ip_forward=1\n' >"$tmp"
+    if ! apply_file "$backup_dir" "$(sys_p /etc/sysctl.d/00-srv-tune-tun.conf)" "$tmp" "ip_forward for tun"; then
+      rm -f "$tmp"
+      return 1
+    fi
+    rm -f "$tmp"
+    printf 'note: add MASQUERADE/NAT for your uplink manually (operator step; never guessed)\n'
   fi
   if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
     return 0

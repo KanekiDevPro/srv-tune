@@ -126,6 +126,30 @@ EOF
   [ ! -e "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf" ]
 }
 
+@test "ssh TUNNEL tun mode in vpn-tunnel writes ip_forward, elsewhere not" {
+  _setup_ssh TUNNEL
+  export SRV_TUNE_TUNNEL_MODE=tun
+  export SRV_TUNE_PROFILE=vpn-tunnel
+  d="$SRV_TUNE_STATE_DIR/backups/s9"
+  mkdir -p "$d"
+  run ssh_apply "$d"
+  unset SRV_TUNE_TUNNEL_MODE SRV_TUNE_PROFILE
+  [ "$status" -eq 0 ]
+  grep -q "^net.ipv4.ip_forward=1" "$SRV_TUNE_SYSROOT/etc/sysctl.d/00-srv-tune-tun.conf"
+}
+
+@test "ssh TUNNEL outside vpn-tunnel writes no forwarding knobs" {
+  _setup_ssh TUNNEL
+  export SRV_TUNE_TUNNEL_MODE=tun
+  export SRV_TUNE_PROFILE=generic
+  d="$SRV_TUNE_STATE_DIR/backups/s10"
+  mkdir -p "$d"
+  run ssh_apply "$d"
+  unset SRV_TUNE_TUNNEL_MODE SRV_TUNE_PROFILE
+  [ "$status" -eq 0 ]
+  [ ! -e "$SRV_TUNE_SYSROOT/etc/sysctl.d/00-srv-tune-tun.conf" ]
+}
+
 @test "ssh port change writes a socket override" {
   _setup_ssh ADMIN
   export SRV_TUNE_SSH_PORT=2222
