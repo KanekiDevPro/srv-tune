@@ -134,6 +134,10 @@ run_apply() {
     if ! "${m}_verify"; then
       printf 'error: %s health-check failed; rolling back %s\n' "$m" "$id" >&2
       rollback_id "$id" || true
+      # Optional live cleanup (e.g. firewall removes only its own table).
+      if declare -F "${m}_rollback_live" >/dev/null 2>&1; then
+        "${m}_rollback_live" || true
+      fi
       return 1
     fi
     state_log_applied "module=$m backup=$id"

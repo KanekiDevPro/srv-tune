@@ -59,3 +59,20 @@ EOF
   run bash "$SRV_TUNE_ROOT/optimizer.sh" explain bogus
   [ "$status" -ne 0 ]
 }
+
+@test "runner calls rollback_live after a failed verify" {
+  # Isolated mini-repo: a module whose verify always fails.
+  local troot="$SRV_TUNE_TMP/troot"
+  mkdir -p "$troot/modules" "$troot/profiles"
+  cp -r "$SRV_TUNE_ROOT/lib" "$troot/"
+  cat >"$troot/modules/failmod.sh" <<'EOF'
+failmod_recommend() { printf 'boom\n'; }
+failmod_apply() { printf 'x\n' >"$1/keep.txt"; return 0; }
+failmod_verify() { return 1; }
+failmod_rollback_live() { printf 'live-cleaned\n' >"$SRV_TUNE_STATE_DIR/live-marker.txt"; }
+EOF
+  printf 'modules="failmod"\n' >"$troot/profiles/hook.conf"
+  run env SRV_TUNE_ROOT="$troot" bash -c 'source "$1/lib/modules.sh"; run_apply hook ""' bash "$troot"
+  [ "$status" -ne 0 ]
+  [ -f "$SRV_TUNE_STATE_DIR/live-marker.txt" ]
+}

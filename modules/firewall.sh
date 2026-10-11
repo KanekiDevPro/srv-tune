@@ -141,6 +141,15 @@ firewall_render_nft() {
   return 0
 }
 
+# firewall_rollback_live - remove ONLY our table; foreign tables (Docker,
+# operator rules) are never touched. Best-effort: file rollback already ran.
+firewall_rollback_live() {
+  # Safe anywhere: deletes only our own table via nft if present.
+  command -v nft >/dev/null 2>&1 || return 0
+  nft delete table inet srv_tune >/dev/null 2>&1 || true
+  return 0
+}
+
 # firewall_ensure_nft - validate with nft -c, apply atomically with nft -f.
 firewall_ensure_nft() {
   local tmp="$1"

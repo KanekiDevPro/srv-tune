@@ -100,3 +100,56 @@ EOF
   run fail2ban_verify
   [ "$status" -eq 0 ]
 }
+
+_setup_nft_store() {
+  # Stateful nft stub: tables live in $SRV_TUNE_TMP/nft-store, one per line.
+  printf 'ip docker\n' >"$SRV_TUNE_TMP/nft-store"
+  cat >"$SRV_TUNE_TMP/stubbin/nft" <<'EOF'
+#!/usr/bin/env bash
+store="${SRV_TUNE_NFT_STORE:?}"
+case "$1" in
+  -c) grep -q 'table inet srv_tune' "$3" ;;
+  -f)
+    grep -E '^table [a-z0-9]+ [a-z0-9_]+' "$2" | awk '{print $2, $3}' >>"$store"
+    sort -u "$store" -o "$store"
+    ;;
+  list) cat "$store" ;;
+  delete)
+    grep -v -x -F "$3 $4" "$store" >"$store.tmp" || true
+    mv "$store.tmp" "$store"
+    ;;
+  *) exit 1 ;;
+esac
+EOF
+  chmod +x "$SRV_TUNE_TMP/stubbin/nft"
+  export SRV_TUNE_NFT_STORE="$SRV_TUNE_TMP/nft-store"
+}
+
+@test "nft apply touches only our table; foreign tables survive" {
+  _setup_fw nft
+  rm -f "$SRV_TUNE_TMP/stubbin/ufw"
+  _setup_nft_store
+  tmp="$(mktemp)"
+  firewall_render_nft "$tmp"
+  run firewall_ensure_nft "$tmp"
+  [ "$status" -eq 0 ]
+  grep -q '^table inet srv_tune' "$tmp"
+  run nft list ruleset
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ip docker"* ]]
+  [[ "$output" == *"inet srv_tune"* ]]
+}
+
+@test "nft rollback removes only our table" {
+  _setup_fw nft
+  rm -f "$SRV_TUNE_TMP/stubbin/ufw"
+  _setup_nft_store
+  tmp="$(mktemp)"
+  firewall_render_nft "$tmp"
+  firewall_ensure_nft "$tmp"
+  run firewall_rollback_live
+  [ "$status" -eq 0 ]
+  run nft list ruleset
+  [[ "$output" == *"ip docker"* ]]
+  [[ "$output" != *"srv_tune"* ]]
+}
