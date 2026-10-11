@@ -2,6 +2,8 @@
 # Shared bats helpers.
 # shellcheck shell=bash
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   # Per-test isolation: BATS_TMPDIR can be shared (it is /tmp on some hosts),
   # so every test gets its own state/lock dir. teardown() removes it.

@@ -83,7 +83,8 @@ EOF
   mkdir -p "$d"
   run network_apply "$d"
   [ "$status" -eq 0 ]
-  ! grep -q "tcp_fastopen" "$SRV_TUNE_SYSROOT/etc/sysctl.d/00-srv-tune.conf"
+  run grep -q "tcp_fastopen" "$SRV_TUNE_SYSROOT/etc/sysctl.d/00-srv-tune.conf"
+  [ "$status" -ne 0 ]
 }
 
 @test "network dry-run writes nothing" {
