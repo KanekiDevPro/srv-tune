@@ -136,7 +136,7 @@ run_apply() {
       rollback_id "$id" || true
       # Optional live cleanup (e.g. firewall removes only its own table).
       if declare -F "${m}_rollback_live" >/dev/null 2>&1; then
-        "${m}_rollback_live" || true
+        "${m}_rollback_live" "$id" || true
       fi
       return 1
     fi

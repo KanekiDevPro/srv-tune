@@ -266,16 +266,16 @@ ssh_recommend() {
   fi
 }
 
-# ssh_firewall_first <port> - open the port before touching sshd.
+# ssh_firewall_first <port> [backup_dir] - open the port before touching sshd.
 ssh_firewall_first() {
-  local port="$1" root="${SRV_TUNE_ROOT:-.}"
+  local port="$1" backup_dir="${2:-}" root="${SRV_TUNE_ROOT:-.}"
   if [[ ! -f "$root/modules/firewall.sh" ]]; then
     printf 'note: no firewall module; open TCP/%s manually before reload\n' "$port"
     return 0
   fi
   # shellcheck disable=SC1090
   source "$root/modules/firewall.sh"
-  firewall_allow_port "$port"
+  firewall_allow_port "$port" "$backup_dir"
 }
 
 ssh_reload() {
@@ -384,20 +384,44 @@ ssh_apply() {
   fi
   # Firewall first: the (new) port must be open before the reload.
   if [[ "$port" != "22" ]]; then
-    ssh_firewall_first "$port" || {
+    ssh_firewall_first "$port" "$backup_dir" || {
       rm -f "$tmp"
       return 1
     }
   fi
-  ssh_firewall_first 22 || {
+  ssh_firewall_first 22 "$backup_dir" || {
     rm -f "$tmp"
     return 1
   }
+  if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+    rm -f "$tmp"
+    return 0
+  fi
+  # Arm the guard BEFORE any write: a crash between write and validate must
+  # still revert (the timer is independent of this process). Skipped in unit
+  # tests via SRV_TUNE_NO_GUARD=1 (they arm it explicitly when needed).
+  local guard_id=""
+  if [[ "${SRV_TUNE_NO_GUARD:-0}" != "1" && "${SRV_TUNE_TEST:-0}" != "1" ]]; then
+    guard_id="$(guard_start "$(basename "$backup_dir")" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
+    printf 'guard %s armed: confirm from a NEW session with: srv-tune confirm %s\n' "$guard_id" "$guard_id"
+  fi
+  if [[ "${SRV_TUNE_SSH_PARTIAL:-0}" == "1" && "$mode" == "ADMIN" ]]; then
+    mkdir -p "$(guard_dir)" || {
+      rm -f "$tmp"
+      return 1
+    }
+    printf 'ssh-passwordless\n' >"$(guard_dir)/pending-$(basename "$backup_dir").lockdown"
+  fi
   if ! apply_file "$backup_dir" "$(ssh_dropin_path)" "$tmp" "ssh $mode"; then
     rm -f "$tmp"
     return 1
   fi
   rm -f "$tmp"
+  # Crash hook (tests/integration only): die right after the first write to
+  # prove the armed guard still reverts. Never set in production.
+  if [[ "${SRV_TUNE_CRASH_AFTER_WRITE:-0}" == "1" ]]; then
+    kill -9 $$
+  fi
   # Port change: socket override so socket-activated daemons listen too.
   if [[ "$port" != "22" ]]; then
     tmp="$(mktemp)"
@@ -421,13 +445,6 @@ ssh_apply() {
     rm -f "$tmp"
     printf 'note: add MASQUERADE/NAT for your uplink manually (operator step; never guessed)\n'
   fi
-  if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
-    return 0
-  fi
-  if [[ "${SRV_TUNE_SSH_PARTIAL:-0}" == "1" && "$mode" == "ADMIN" ]]; then
-    mkdir -p "$(guard_dir)" || return 1
-    printf 'ssh-passwordless\n' >"$(guard_dir)/pending-$(basename "$backup_dir").lockdown"
-  fi
   # Validate the merged LIVE config now that the drop-in is in place; on
   # failure restore from this run's backup immediately (before any reload).
   if ! ssh_sshd_test; then
@@ -439,12 +456,6 @@ ssh_apply() {
   fi
   if [[ "$mode" == "TUNNEL" ]]; then
     ssh_ensure_tunnel_user || return 1
-  fi
-  # Arm the guard (skipped in unit tests via SRV_TUNE_NO_GUARD=1).
-  local guard_id=""
-  if [[ "${SRV_TUNE_NO_GUARD:-0}" != "1" && "${SRV_TUNE_TEST:-0}" != "1" ]]; then
-    guard_id="$(guard_start "$(basename "$backup_dir")" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
-    printf 'guard %s armed: confirm from a NEW session with: srv-tune confirm %s\n' "$guard_id" "$guard_id"
   fi
   if ! ssh_reload; then
     printf 'error: sshd reload failed; rolling back\n' >&2
@@ -511,6 +522,109 @@ ssh_finalize_passwordless() {
   ssh_reload || return 1
   rm -f "$gdir/pending-${backup_id}.lockdown"
   printf 'password authentication disabled (why: key verified + NEW session confirmed)\n'
+  return 0
+}
+
+# ssh_close_port <port> - SEPARATE explicit step, only after the replacement
+# port was confirmed working from a NEW session. Never called by apply.
+# Refuses when nothing would remain to fall back to, or when the replacement
+# port is not currently listening.
+ssh_close_port() {
+  local port="$1" f sockf tmp newports
+  if [[ ! "$port" =~ ^[0-9]+$ ]]; then
+    printf 'error: bad port: %s\n' "$port" >&2
+    return 1
+  fi
+  # shellcheck disable=SC1091
+  source "$(dirname "${BASH_SOURCE[0]}")/../lib/dryrun.sh"
+  # shellcheck disable=SC1091
+  source "$(dirname "${BASH_SOURCE[0]}")/../lib/backup.sh"
+  # shellcheck disable=SC1091
+  source "$(dirname "${BASH_SOURCE[0]}")/../lib/ssh-guard.sh"
+  f="$(ssh_dropin_path)"
+  if [[ ! -f "$f" ]]; then
+    printf 'error: no srv-tune ssh drop-in to edit\n' >&2
+    return 1
+  fi
+  newports="$(grep -E '^Port ' "$f" | awk '{print $2}' | grep -v -x "$port" || true)"
+  if [[ -z "$newports" ]]; then
+    printf 'error: closing %s would leave no ssh port; refusing\n' "$port" >&2
+    return 1
+  fi
+  if command -v ss >/dev/null 2>&1 && [[ -z "${SRV_TUNE_SS_BIN:-}" ]]; then
+    local np ok=0
+    for np in $newports; do
+      if ss -tlnp 2>/dev/null | grep -q ":${np} "; then
+        ok=1
+      fi
+    done
+    if [[ "$ok" != "1" ]]; then
+      printf 'error: no replacement port is listening; refusing to close %s\n' "$port" >&2
+      return 1
+    fi
+  elif [[ -n "${SRV_TUNE_SS_BIN:-}" ]]; then
+    local np ok=0
+    for np in $newports; do
+      if "${SRV_TUNE_SS_BIN}" -tlnp 2>/dev/null | grep -q ":${np} "; then
+        ok=1
+      fi
+    done
+    if [[ "$ok" != "1" ]]; then
+      printf 'error: no replacement port is listening; refusing to close %s\n' "$port" >&2
+      return 1
+    fi
+  else
+    printf 'error: ss missing; cannot prove a fallback port (refusing)\n' >&2
+    return 1
+  fi
+  local backup_dir id2
+  id2="$(new_backup_id)"
+  backup_dir="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}/backups/$id2"
+  mkdir -p "$backup_dir" || return 1
+  tmp="$(mktemp)"
+  grep -v -x "Port $port" "$f" >"$tmp"
+  if ! ssh_validate_dropin "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! apply_file "$backup_dir" "$f" "$tmp" "close ssh port $port"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  rm -f "$tmp"
+  sockf="$(sys_p /etc/systemd/system/ssh.socket.d/00-srv-tune.conf)"
+  if [[ -f "$sockf" ]] && grep -q "ListenStream=$port" "$sockf"; then
+    tmp="$(mktemp)"
+    grep -v -x "ListenStream=$port" "$sockf" >"$tmp"
+    apply_file "$backup_dir" "$sockf" "$tmp" "close socket port $port" || {
+      rm -f "$tmp"
+      return 1
+    }
+    rm -f "$tmp"
+  fi
+  if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+    return 0
+  fi
+  if ! ssh_sshd_test; then
+    printf 'error: sshd rejects the config without port %s; restoring\n' "$port" >&2
+    # shellcheck disable=SC1091
+    source "$(dirname "${BASH_SOURCE[0]}")/../lib/rollback.sh"
+    rollback_id "$id2" || true
+    return 1
+  fi
+  local guard_id=""
+  if [[ "${SRV_TUNE_NO_GUARD:-0}" != "1" && "${SRV_TUNE_TEST:-0}" != "1" ]]; then
+    guard_id="$(guard_start "$id2" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
+    printf 'guard %s armed: confirm with srv-tune confirm %s\n' "$guard_id" "$guard_id"
+  fi
+  if ! ssh_reload; then
+    printf 'error: reload failed; rolling back\n' >&2
+    # shellcheck disable=SC1091
+    source "$(dirname "${BASH_SOURCE[0]}")/../lib/rollback.sh"
+    rollback_id "$id2" || true
+    return 1
+  fi
+  printf 'closed ssh port %s (backup %s)\n' "$port" "$id2"
   return 0
 }
 

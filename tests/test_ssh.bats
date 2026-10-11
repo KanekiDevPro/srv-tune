@@ -39,6 +39,12 @@ if [[ "\${SRV_TUNE_STUB_ETIMES:-}" == "fail" ]]; then exit 1; fi
 if [[ -n "\${SRV_TUNE_STUB_ETIMES:-}" ]]; then printf '%s\n' "\$SRV_TUNE_STUB_ETIMES"; else exec "$realps" "\$@"; fi
 EOF
   chmod +x "$SRV_TUNE_TMP/stubbin/date" "$SRV_TUNE_TMP/stubbin/ps"
+  cat >"$SRV_TUNE_TMP/stubbin/systemd-run" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >>"$SRV_TUNE_TMP/systemd-run.log"
+exit 0
+EOF
+  chmod +x "$SRV_TUNE_TMP/stubbin/systemd-run"
   cat >"$SRV_TUNE_TMP/stubbin/ss" <<'EOF'
 #!/usr/bin/env bash
 rc=${SRV_TUNE_STUB_SS_RC:-0}
@@ -208,8 +214,8 @@ EOF
   run ssh_apply "$d"
   unset SRV_TUNE_SSH_PORT
   [ "$status" -eq 0 ]
-  grep -q "^Port 22" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
-  grep -q "^Port 2222" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  grep -qx "Port 22" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  grep -qx "Port 2222" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
   grep -q "ListenStream=2222" "$SRV_TUNE_SYSROOT/etc/systemd/system/ssh.socket.d/00-srv-tune.conf"
 }
 
@@ -223,4 +229,63 @@ EOF
   unset SRV_TUNE_SSH_PORT SRV_TUNE_STUB_SS_RC
   [ "$status" -ne 0 ]
   [[ "$output" == *"not listening"* ]]
+}
+
+@test "ssh-close-port removes 22 only when 2222 listens" {
+  _setup_ssh ADMIN
+  export SRV_TUNE_SSH_PORT=2222
+  d="$SRV_TUNE_STATE_DIR/backups/s7"
+  mkdir -p "$d"
+  ssh_apply "$d" >/dev/null
+  unset SRV_TUNE_SSH_PORT
+  run ssh_close_port 22
+  [ "$status" -eq 0 ]
+  run grep -qx "Port 22" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  [ "$status" -ne 0 ]
+  grep -qx "Port 2222" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+}
+
+@test "ssh-close-port refuses when nothing listens as fallback" {
+  _setup_ssh ADMIN
+  export SRV_TUNE_SSH_PORT=2222
+  d="$SRV_TUNE_STATE_DIR/backups/s7b"
+  mkdir -p "$d"
+  ssh_apply "$d" >/dev/null
+  unset SRV_TUNE_SSH_PORT
+  export SRV_TUNE_STUB_SS_RC=1
+  run ssh_close_port 22
+  unset SRV_TUNE_STUB_SS_RC
+  [ "$status" -ne 0 ]
+  grep -qx "Port 22" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+}
+
+@test "ssh-close-port refuses the last remaining port" {
+  _setup_ssh ADMIN
+  d="$SRV_TUNE_STATE_DIR/backups/s7c"
+  mkdir -p "$d"
+  ssh_apply "$d" >/dev/null
+  run ssh_close_port 22
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"no ssh port"* ]]
+}
+
+@test "crash after write still reverts via the armed guard" {
+  _setup_ssh ADMIN
+  export SRV_TUNE_GUARD_BACKEND=systemd
+  export SRV_TUNE_CRASH_AFTER_WRITE=1
+  d="$SRV_TUNE_STATE_DIR/backups/crash1"
+  mkdir -p "$d"
+  printf '# operator baseline\nPort 22\n' >"$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  # TEST/NO_GUARD off so the real guard path arms (systemd stubbed, no timer).
+  run env -u SRV_TUNE_TEST -u SRV_TUNE_NO_GUARD \
+    bash -c 'source "$1/lib/modules.sh"; module_load ssh; ssh_apply "$2"' bash "$SRV_TUNE_ROOT" "$d"
+  [ "$status" -ne 0 ]
+  # The write happened (process died right after it)...
+  grep -q "srv-tune ADMIN" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  # ...and the armed guard's own revert script restores the original.
+  [ -x "$SRV_TUNE_STATE_DIR/guard/revert-crash1.sh" ]
+  bash "$SRV_TUNE_STATE_DIR/guard/revert-crash1.sh"
+  grep -q "operator baseline" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  run grep -q "srv-tune ADMIN" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  [ "$status" -ne 0 ]
 }

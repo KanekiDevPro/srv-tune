@@ -36,6 +36,7 @@ Usage:
   optimizer apply --profile X [--only mod[,mod]] [--dry-run] [--yes] [--lang fa|en]
   optimizer rollback [id] | list-backups | status | benchmark | explain <module>
   optimizer audit | update | uninstall | confirm <guard-id> [--force]
+  optimizer ssh-close-port <port> (explicit; only after NEW-session proof)
   optimizer --help | --version
 EOF
 }
@@ -50,10 +51,10 @@ CMD=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-  scan | recommend | apply | rollback | list-backups | status | benchmark | explain | audit | update | uninstall | confirm)
+  scan | recommend | apply | rollback | list-backups | status | benchmark | explain | audit | update | uninstall | confirm | ssh-close-port)
     CMD="$1"
     shift
-    if [[ "$CMD" == "explain" || "$CMD" == "rollback" || "$CMD" == "confirm" ]]; then
+    if [[ "$CMD" == "explain" || "$CMD" == "rollback" || "$CMD" == "confirm" || "$CMD" == "ssh-close-port" ]]; then
       EXTRA="${1:-}"
       shift || true
       export EXTRA
@@ -176,6 +177,18 @@ status)
   ;;
 confirm)
   guard_confirm "${EXTRA:-}" "$FORCE"
+  ;;
+ssh-close-port)
+  # shellcheck disable=SC1091
+  source "$SRV_TUNE_ROOT/lib/modules.sh"
+  module_load ssh
+  lock_acquire || exit 1
+  trap lock_release EXIT INT TERM
+  ssh_close_port "${EXTRA:-}"
+  rc=$?
+  trap - EXIT INT TERM
+  lock_release
+  exit $rc
   ;;
 explain)
   # shellcheck disable=SC1091

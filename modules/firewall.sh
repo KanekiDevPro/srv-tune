@@ -52,11 +52,16 @@ firewall_recommend() {
   printf 'default-deny only under guard + NEW-session confirm (why: revert on silence)\n'
 }
 
-# firewall_allow_port <port> - immediate allow (ufw) or pending list (nft).
+# firewall_allow_port <port> [backup_dir] - immediate allow (ufw) or
+# pending list (nft). Live ufw allows are logged for rollback.
 firewall_allow_port() {
-  local port="$1" tool state
+  local port="$1" backup_dir="${2:-}" tool state
   tool="$(firewall_tool)"
   state="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
+  if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+    printf 'dry-run: firewall allow %s/tcp (why: port first, nothing executed)\n' "$port"
+    return 0
+  fi
   case "$tool" in
   ufw | ufw-inactive)
     if ! firewall_is_live; then
@@ -73,6 +78,9 @@ firewall_allow_port() {
       printf 'error: ufw allow %s failed\n' "$port" >&2
       return 1
     }
+    if [[ -n "$backup_dir" ]]; then
+      printf '%s\n' "$port" >>"$backup_dir/ufw-added.log"
+    fi
     ;;
   nftables)
     mkdir -p "$state"
@@ -144,9 +152,21 @@ firewall_render_nft() {
 # firewall_rollback_live - remove ONLY our table; foreign tables (Docker,
 # operator rules) are never touched. Best-effort: file rollback already ran.
 firewall_rollback_live() {
-  # Safe anywhere: deletes only our own table via nft if present.
-  command -v nft >/dev/null 2>&1 || return 0
-  nft delete table inet srv_tune >/dev/null 2>&1 || true
+  # Safe anywhere: deletes only our own table / our own added rules.
+  local id="${1:-}" base dir p
+  base="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
+  if command -v nft >/dev/null 2>&1; then
+    nft delete table inet srv_tune >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$id" ]]; then
+    dir="$base/backups/$id"
+    if [[ -f "$dir/ufw-added.log" ]] && command -v ufw >/dev/null 2>&1; then
+      while IFS= read -r p; do
+        [[ -z "$p" ]] && continue
+        ufw delete allow "$p/tcp" >/dev/null 2>&1 || true
+      done <"$dir/ufw-added.log"
+    fi
+  fi
   return 0
 }
 
@@ -214,9 +234,14 @@ firewall_apply() {
       printf 'dry-run: ufw allow %s/tcp then enable (why: port first)\n' "$(firewall_ssh_port)"
       return 0
     fi
-    firewall_allow_port "$(firewall_ssh_port)" || return 1
+    firewall_allow_port "$(firewall_ssh_port)" "$backup_dir" || return 1
     if [[ "$(firewall_ssh_port)" != "22" ]]; then
-      firewall_allow_port 22 || return 1
+      firewall_allow_port 22 "$backup_dir" || return 1
+    fi
+    local guard_id=""
+    if [[ "${SRV_TUNE_NO_GUARD:-0}" != "1" && "${SRV_TUNE_TEST:-0}" != "1" ]]; then
+      guard_id="$(guard_start "$(basename "$backup_dir")" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
+      printf 'guard %s armed: confirm with srv-tune confirm %s\n' "$guard_id" "$guard_id"
     fi
     firewall_ensure_ufw_ipv6 "$backup_dir" || return 1
     if ! firewall_is_live; then
@@ -224,9 +249,6 @@ firewall_apply() {
       printf 'note: sandboxed, ufw enable skipped\n'
       return 0
     fi
-    local guard_id
-    guard_id="$(guard_start "$(basename "$backup_dir")" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
-    printf 'guard %s armed: confirm with srv-tune confirm %s\n' "$guard_id" "$guard_id"
     if ! ufw --force enable 2>/dev/null; then
       printf 'error: ufw enable failed\n' >&2
       return 1
@@ -252,9 +274,11 @@ firewall_apply() {
       printf 'note: sandboxed, nft -f skipped; persist by loading this file at boot (see recommend)\n'
       return 0
     fi
-    local guard_id
-    guard_id="$(guard_start "$(basename "$backup_dir")" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
-    printf 'guard %s armed: confirm with srv-tune confirm %s\n' "$guard_id" "$guard_id"
+    local guard_id=""
+    if [[ "${SRV_TUNE_NO_GUARD:-0}" != "1" && "${SRV_TUNE_TEST:-0}" != "1" ]]; then
+      guard_id="$(guard_start "$(basename "$backup_dir")" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
+      printf 'guard %s armed: confirm with srv-tune confirm %s\n' "$guard_id" "$guard_id"
+    fi
     firewall_ensure_nft "$(sys_p /etc/nftables.d/00-srv-tune.nft)" || return 1
     printf 'note: load this file at boot (nft -f in local process); verify, then: srv-tune confirm %s\n' "$guard_id"
     ;;
