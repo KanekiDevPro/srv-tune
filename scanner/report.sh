@@ -52,6 +52,7 @@ list_recommendations() {
   if [[ "${SSH_PASS:-}" == "yes" ]]; then printf 'ssh-admin: disable PasswordAuthentication after key verified (why: brute-force risk)\n'; fi
   if [[ "${SSH_ROOT:-}" == "yes" ]]; then printf 'ssh-admin: set PermitRootLogin no (why: least privilege)\n'; fi
   if [[ "${FIREWALL:-none}" == "none" ]]; then printf 'security: enable ufw/nftables (why: reduce attack surface)\n'; fi
+  if [[ "${DOCKER:-no}" == "yes" && "${FIREWALL:-none}" != "none" ]]; then printf 'security: docker publishes ports outside ufw (why: bypass; use DOCKER-USER chain or nftables)\n'; fi
   if [[ "${CC:-}" != "bbr" ]]; then printf 'network: enable BBR+fq if kernel supports it (why: higher throughput)\n'; fi
   if [[ "${TUNED:-no}" == "no" ]]; then printf 'network: apply sysctl drop-in 00-srv-tune.conf (why: buffers from RAM/BW)\n'; fi
   if [[ "${AES_NI:-}" == "no" ]]; then printf 'ssh: prefer chacha20-poly1305 (why: no AES-NI)\n'; fi

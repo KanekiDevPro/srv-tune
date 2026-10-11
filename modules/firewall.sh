@@ -178,6 +178,29 @@ firewall_ensure_nft() {
   return 0
 }
 
+# firewall_ensure_ufw_ipv6 - ufw must cover IPv6 too (IPV6=yes).
+firewall_ensure_ufw_ipv6() {
+  local backup_dir="$1" f tmp cur
+  f="$(sys_p /etc/default/ufw)"
+  if [[ ! -f "$f" ]]; then
+    printf 'note: %s missing; cannot confirm ufw IPv6 coverage\n' "$f"
+    return 0
+  fi
+  cur="$(grep -E '^IPV6=' "$f" 2>/dev/null | tail -n 1 | cut -d= -f2 | tr -d ' ' || true)"
+  if [[ "$cur" == "yes" ]]; then
+    return 0
+  fi
+  tmp="$(mktemp)"
+  if grep -q '^IPV6=' "$f"; then
+    sed -E 's/^IPV6=.*/IPV6=yes/' "$f" >"$tmp"
+  else
+    cat "$f" >"$tmp"
+    printf '\nIPV6=yes\n' >>"$tmp"
+  fi
+  apply_file "$backup_dir" "$f" "$tmp" "ufw IPv6 coverage" || return 1
+  return 0
+}
+
 firewall_apply() {
   local backup_dir="$1" tool
   # shellcheck disable=SC1091
@@ -195,6 +218,7 @@ firewall_apply() {
     if [[ "$(firewall_ssh_port)" != "22" ]]; then
       firewall_allow_port 22 || return 1
     fi
+    firewall_ensure_ufw_ipv6 "$backup_dir" || return 1
     if ! firewall_is_live; then
       printf 'enable\n' >>"${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}/fw-intent.log"
       printf 'note: sandboxed, ufw enable skipped\n'

@@ -94,10 +94,9 @@ EOF
 # session_start_epoch - when the CALLER's session began (epoch secs).
 # ps etimes first, then tty device mtime. Fails when neither works.
 session_start_epoch() {
-  local now et pid
-  pid="${1:-$$}"
+  local now et
   now="$(date +%s 2>/dev/null || printf '0')"
-  et="$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
+  et="$(ps -o etimes= -p $$ 2>/dev/null | tr -d ' ' || true)"
   if [[ "$et" =~ ^[0-9]+$ ]] && [[ "$now" != "0" ]]; then
     printf '%s\n' "$((now - et))"
     return 0
@@ -146,6 +145,25 @@ guard_confirm() {
     elif [[ "$start" -le "$apply_ts" ]]; then
       printf 'error: this session started at %s, apply was at %s: only NEWER sessions may confirm. Use --force to override.\n' "$start" "$apply_ts" >&2
       return 1
+    fi
+  fi
+  # Deferred lockdowns (e.g. ADMIN password switch) complete here, only
+  # after a NEW session proved access. A failed finalize keeps the guard
+  # armed (no cancel) so the timer still reverts.
+  local pending
+  pending="$gdir/pending-${backup_id}.lockdown"
+  if [[ -f "$pending" ]]; then
+    local root="${SRV_TUNE_ROOT:-.}"
+    if [[ -f "$root/modules/ssh.sh" ]]; then
+      # shellcheck disable=SC1090
+      source "$root/modules/ssh.sh"
+      if ! ssh_finalize_passwordless "$backup_id"; then
+        printf 'error: pending lockdown failed; guard stays armed\n' >&2
+        return 1
+      fi
+    else
+      printf 'warn: pending lockdown %s skipped (ssh module missing)\n' "$pending" >&2
+      rm -f "$pending"
     fi
   fi
   touch "$gdir/cancelled-${backup_id}"

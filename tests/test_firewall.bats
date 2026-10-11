@@ -52,6 +52,17 @@ EOF
   [ "$status" -eq 0 ]
 }
 
+@test "firewall ufw ensures IPV6 coverage" {
+  _setup_fw ufw
+  mkdir -p "$SRV_TUNE_SYSROOT/etc/default"
+  printf 'IPV6=no\n' >"$SRV_TUNE_SYSROOT/etc/default/ufw"
+  d="$SRV_TUNE_STATE_DIR/backups/fv6"
+  mkdir -p "$d"
+  run firewall_apply "$d"
+  [ "$status" -eq 0 ]
+  grep -q "^IPV6=yes" "$SRV_TUNE_SYSROOT/etc/default/ufw"
+}
+
 @test "firewall nft renders an atomic ruleset with the ssh port" {
   _setup_fw nft
   rm -f "$SRV_TUNE_TMP/stubbin/ufw"
@@ -61,6 +72,7 @@ EOF
   [ "$status" -eq 0 ]
   f="$SRV_TUNE_SYSROOT/etc/nftables.d/00-srv-tune.nft"
   [ -f "$f" ]
+  grep -q "table inet srv_tune" "$f"
   grep -q "tcp dport" "$f"
   grep -q "22" "$f"
   run firewall_verify

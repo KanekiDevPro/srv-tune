@@ -151,7 +151,12 @@ ssh_render_admin() {
       printf 'Port %s\n' "$port"
     fi
     printf 'PermitRootLogin prohibit-password\n'
-    printf 'PasswordAuthentication no\nPubkeyAuthentication yes\n'
+    if [[ "${SRV_TUNE_SSH_PARTIAL:-0}" == "1" ]]; then
+      printf '# srv-tune: password lockdown PENDING (no key at apply time; completes on NEW-session confirm)\n'
+    else
+      printf 'PasswordAuthentication no\n'
+    fi
+    printf 'PubkeyAuthentication yes\n'
     printf 'MaxAuthTries 3\nLoginGraceTime 30\n'
     printf 'X11Forwarding no\nUseDNS no\n'
     printf 'ClientAliveInterval 30\nClientAliveCountMax 3\n'
@@ -345,7 +350,14 @@ ssh_apply() {
   mode="$(ssh_mode)"
   port="$(ssh_port)"
   if [[ "$mode" == "ADMIN" ]]; then
-    ssh_key_ok || return 1
+    # No key yet: apply every non-lockout setting, defer ONLY the password
+    # switch to the NEW-session confirm (never lock yourself out).
+    if ssh_key_ok 2>/dev/null; then
+      unset SRV_TUNE_SSH_PARTIAL
+    else
+      export SRV_TUNE_SSH_PARTIAL=1
+      printf 'note: no valid key for %s; password auth stays until a NEW session confirms (see guard)\n' "$(ssh_user)"
+    fi
   fi
   tmp="$(mktemp)"
   case "$mode" in
@@ -412,6 +424,10 @@ ssh_apply() {
   if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
     return 0
   fi
+  if [[ "${SRV_TUNE_SSH_PARTIAL:-0}" == "1" && "$mode" == "ADMIN" ]]; then
+    mkdir -p "$(guard_dir)" || return 1
+    printf 'ssh-passwordless\n' >"$(guard_dir)/pending-$(basename "$backup_dir").lockdown"
+  fi
   # Validate the merged LIVE config now that the drop-in is in place; on
   # failure restore from this run's backup immediately (before any reload).
   if ! ssh_sshd_test; then
@@ -443,6 +459,58 @@ ssh_apply() {
     printf 'verify the new session works, then run: srv-tune confirm %s\n' "$guard_id"
   fi
   ssh_tunnel_artifacts || true
+  return 0
+}
+
+# ssh_finalize_passwordless <backup_id> - complete the deferred ADMIN
+# lockdown after a NEW session proved access. Re-verifies the key FIRST;
+# without a key it warns and leaves password auth alone (confirm still
+# cancels: the session itself was proven working).
+ssh_finalize_passwordless() {
+  local backup_id="$1" gdir base dir2 id2
+  gdir="$(guard_dir)"
+  if [[ ! -f "$gdir/pending-${backup_id}.lockdown" ]]; then
+    return 0
+  fi
+  base="$(dirname "${BASH_SOURCE[0]}")"
+  # shellcheck disable=SC1091
+  source "$base/../lib/modules.sh"
+  # shellcheck disable=SC1091
+  source "$base/backup.sh"
+  unset SRV_TUNE_SSH_PARTIAL
+  if ! ssh_key_ok 2>/dev/null; then
+    printf 'warn: key still missing for %s; password auth stays enabled\n' "$(ssh_user)" >&2
+    rm -f "$gdir/pending-${backup_id}.lockdown"
+    return 0
+  fi
+  base="$(dirname "${BASH_SOURCE[0]}")"
+  # shellcheck disable=SC1091
+  source "$base/../lib/dryrun.sh"
+  id2="$(new_backup_id)"
+  dir2="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}/backups/$id2"
+  mkdir -p "$dir2" || return 1
+  local tmp
+  tmp="$(mktemp)"
+  ssh_render_admin "$tmp"
+  if ! ssh_validate_dropin "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! apply_file "$dir2" "$(ssh_dropin_path)" "$tmp" "ssh ADMIN password lockdown"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  rm -f "$tmp"
+  if ! ssh_sshd_test; then
+    printf 'error: sshd rejects the lockdown; restoring\n' >&2
+    # shellcheck disable=SC1091
+    source "$base/../lib/rollback.sh"
+    rollback_id "$id2" || true
+    return 1
+  fi
+  ssh_reload || return 1
+  rm -f "$gdir/pending-${backup_id}.lockdown"
+  printf 'password authentication disabled (why: key verified + NEW session confirmed)\n'
   return 0
 }
 

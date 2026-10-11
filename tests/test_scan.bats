@@ -23,4 +23,12 @@ load bats_helper
   [ -f "$out" ]
   grep -q '"SCORE"' "$out"
   grep -q '"PROFILE"' "$out"
+  grep -q '"DOCKER"' "$out"
+}
+
+@test "docker plus firewall warns about the ufw bypass" {
+  run env FIREWALL=ufw DOCKER=yes OS_TIER=tier1 SSH_PASS=no SSH_ROOT=no CC=bbr TUNED=yes AES_NI=yes SWAP_KB=999 \
+    bash -c 'source "$1"; list_recommendations' bash "$SRV_TUNE_ROOT/scanner/report.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"outside ufw"* ]]
 }

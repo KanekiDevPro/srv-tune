@@ -26,6 +26,19 @@ exit ${SRV_TUNE_STUB_SSHD_RC:-0}
 EOF
   chmod +x "$SRV_TUNE_TMP/stubbin/sshd"
   export SRV_TUNE_SSHD_BIN="$SRV_TUNE_TMP/stubbin/sshd"
+  local realdate realps
+  realdate="$(command -v date)"
+  realps="$(command -v ps || printf '')"
+  cat >"$SRV_TUNE_TMP/stubbin/date" <<EOF
+#!/usr/bin/env bash
+if [[ -n "\${SRV_TUNE_STUB_DATE:-}" ]]; then printf '%s\n' "\$SRV_TUNE_STUB_DATE"; else exec "$realdate" "\$@"; fi
+EOF
+  cat >"$SRV_TUNE_TMP/stubbin/ps" <<EOF
+#!/usr/bin/env bash
+if [[ "\${SRV_TUNE_STUB_ETIMES:-}" == "fail" ]]; then exit 1; fi
+if [[ -n "\${SRV_TUNE_STUB_ETIMES:-}" ]]; then printf '%s\n' "\$SRV_TUNE_STUB_ETIMES"; else exec "$realps" "\$@"; fi
+EOF
+  chmod +x "$SRV_TUNE_TMP/stubbin/date" "$SRV_TUNE_TMP/stubbin/ps"
   cat >"$SRV_TUNE_TMP/stubbin/ss" <<'EOF'
 #!/usr/bin/env bash
 rc=${SRV_TUNE_STUB_SS_RC:-0}
@@ -63,15 +76,52 @@ EOF
   [ "$status" -eq 0 ]
 }
 
-@test "ssh ADMIN refuses without a valid authorized key" {
+@test "ssh ADMIN without a key applies the safe subset and defers the switch" {
   _setup_ssh ADMIN
   rm -f "$SRV_TUNE_TEST_USER_HOME/.ssh/authorized_keys"
   d="$SRV_TUNE_STATE_DIR/backups/s2"
   mkdir -p "$d"
   run ssh_apply "$d"
+  [ "$status" -eq 0 ]
+  f="$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  [ -f "$f" ]
+  grep -q "^MaxAuthTries 3" "$f"
+  grep -q "PENDING" "$f"
+  run grep -q "^PasswordAuthentication no" "$f"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"authorized_keys"* ]]
-  [ ! -e "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf" ]
+  [ -f "$SRV_TUNE_STATE_DIR/guard/pending-s2.lockdown" ]
+}
+
+@test "ssh confirm completes the lockdown once a key exists" {
+  _setup_ssh ADMIN
+  rm -f "$SRV_TUNE_TEST_USER_HOME/.ssh/authorized_keys"
+  d="$SRV_TUNE_STATE_DIR/backups/s2b"
+  mkdir -p "$d"
+  SSH_TTY=/dev/pts/7 SRV_TUNE_STUB_DATE=1000 ssh_apply "$d" >/dev/null
+  [ -f "$SRV_TUNE_STATE_DIR/guard/pending-s2b.lockdown" ]
+  printf 'ssh-ed25519 AAAAvalidkey testuser@host\n' >"$SRV_TUNE_TEST_USER_HOME/.ssh/authorized_keys"
+  chmod 600 "$SRV_TUNE_TEST_USER_HOME/.ssh/authorized_keys"
+  run env SSH_TTY=/dev/pts/9 SRV_TUNE_STUB_DATE=1100 SRV_TUNE_STUB_ETIMES=5 PATH="$SRV_TUNE_TMP/stubbin:$PATH" \
+    bash -c 'source "$1"; guard_confirm s2b' bash "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
+  [ "$status" -eq 0 ]
+  grep -q "^PasswordAuthentication no" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  [ ! -f "$SRV_TUNE_STATE_DIR/guard/pending-s2b.lockdown" ]
+  [ -f "$SRV_TUNE_STATE_DIR/guard/cancelled-s2b" ]
+}
+
+@test "ssh confirm without a key warns and keeps password auth" {
+  _setup_ssh ADMIN
+  rm -f "$SRV_TUNE_TEST_USER_HOME/.ssh/authorized_keys"
+  d="$SRV_TUNE_STATE_DIR/backups/s2c"
+  mkdir -p "$d"
+  SSH_TTY=/dev/pts/7 SRV_TUNE_STUB_DATE=1000 ssh_apply "$d" >/dev/null
+  run env SSH_TTY=/dev/pts/9 SRV_TUNE_STUB_DATE=1100 SRV_TUNE_STUB_ETIMES=5 PATH="$SRV_TUNE_TMP/stubbin:$PATH" \
+    bash -c 'source "$1"; guard_confirm s2c' bash "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"key still missing"* ]]
+  run grep -q "^PasswordAuthentication no" "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  [ "$status" -ne 0 ]
+  [ -f "$SRV_TUNE_STATE_DIR/guard/cancelled-s2c" ]
 }
 
 @test "ssh rejects invalid config (failure injection)" {

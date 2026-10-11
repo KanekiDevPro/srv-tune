@@ -21,6 +21,10 @@ collect_fw() {
   if ls /etc/sysctl.d/*.conf >/dev/null 2>&1; then
     tuned="yes"
   fi
-  printf 'FIREWALL=%s\nOPEN_PORTS=%s\nFAIL2BAN=%s\nTUNED=%s\n' \
-    "$fw" "$ports" "$f2b" "$tuned"
+  local docker="no"
+  if command -v docker >/dev/null 2>&1; then
+    docker="yes"
+  fi
+  printf 'FIREWALL=%s\nOPEN_PORTS=%s\nFAIL2BAN=%s\nTUNED=%s\nDOCKER=%s\n' \
+    "$fw" "$ports" "$f2b" "$tuned" "$docker"
 }
