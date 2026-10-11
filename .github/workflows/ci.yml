@@ -38,7 +38,7 @@ jobs:
       - name: shfmt
         run: shfmt -d -i 2 optimizer.sh lib modules scanner tests
       - name: bats
-        run: "$RUNNER_TEMP/srv-tools/bats-core-${BATS_VER}/bin/bats" tests/
+        run: '"$RUNNER_TEMP/srv-tools/bats-core-${BATS_VER}/bin/bats" tests/'
   scan-matrix:
     strategy:
       matrix:
