@@ -69,7 +69,7 @@ _file_url_works() {
     skip "sha256sum missing on this host"
   fi
   sum="$(sha256sum "$base/v9.9.8/srv-tune-v9.9.8.tar.gz" | awk '{print $1}')"
-  printf 'srv-tune-v9.9.8.tar.gz  %s\n' "$sum" >"$base/v9.9.8/sha256sums.txt"
+  printf '%s  srv-tune-v9.9.8.tar.gz\n' "$sum" >"$base/v9.9.8/sha256sums.txt"
   printf 'v9.9.8\n' >"$SRV_TUNE_TMP/apitag"
   run env SRV_TUNE_UPDATE_API_STUB="$SRV_TUNE_TMP/apitag" SRV_TUNE_RELEASE_BASE="file://$base" \
     bash -c 'source "$1"; self_update' bash "$SRV_TUNE_ROOT/lib/update.sh"

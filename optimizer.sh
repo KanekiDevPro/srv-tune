@@ -4,7 +4,22 @@
 # shellcheck shell=bash
 set -euo pipefail
 
-SRV_TUNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SRV_TUNE_ROOT="${BASH_SOURCE[0]}"
+# Resolve install symlinks (prefix/bin/srv-tune -> share/srv-tune) without
+# readlink -f (not portable): follow one level at a time, bounded.
+for _i in 1 2 3 4 5 6 7 8; do
+  if [[ -L "$SRV_TUNE_ROOT" ]]; then
+    _tgt="$(readlink "$SRV_TUNE_ROOT")"
+    case "$_tgt" in
+    /*) SRV_TUNE_ROOT="$_tgt" ;;
+    *) SRV_TUNE_ROOT="$(dirname "$SRV_TUNE_ROOT")/$_tgt" ;;
+    esac
+  else
+    break
+  fi
+done
+unset _i _tgt
+SRV_TUNE_ROOT="$(cd "$(dirname "$SRV_TUNE_ROOT")" && pwd)"
 export SRV_TUNE_ROOT
 
 # shellcheck disable=SC1091
