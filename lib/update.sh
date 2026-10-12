@@ -50,7 +50,7 @@ self_update() {
     return 1
   fi
   local want actual
-  want="$(printf '%s' "$sums" | awk '$2 ~ /pkg.tar.gz/ {print $1}' | head -n 1)"
+  want="$(printf '%s' "$sums" | awk '$2 ~ /\.tar\.gz$/ {print $1}' | head -n 1)"
   actual="$(sha256sum "$tmp/pkg.tar.gz" | awk '{print $1}')"
   if [[ -z "$want" || "$want" != "$actual" ]]; then
     printf 'error: checksum mismatch for %s (refusing)\n' "$tag" >&2
