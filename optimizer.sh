@@ -254,5 +254,14 @@ benchmark)
   fi
   bash "${args[@]}"
   ;;
-update | uninstall) ;;
+update)
+  # shellcheck disable=SC1091
+  source "$SRV_TUNE_ROOT/lib/update.sh"
+  self_update
+  ;;
+uninstall)
+  # shellcheck disable=SC1091
+  source "$SRV_TUNE_ROOT/lib/update.sh"
+  do_uninstall "${SRV_TUNE_PREFIX:-/usr/local}"
+  ;;
 esac
