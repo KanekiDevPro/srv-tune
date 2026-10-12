@@ -34,7 +34,9 @@ Usage:
   optimizer scan [--json FILE] [--lang fa|en]
   optimizer recommend [--lang fa|en]
   optimizer apply --profile X [--only mod[,mod]] [--dry-run] [--yes] [--lang fa|en]
-  optimizer rollback [id] | list-backups | status | benchmark | explain <module>
+  optimizer rollback [id] | list-backups | status | explain <module>
+  optimizer benchmark [--out DIR] [--iperf-server H] [--install-deps]
+  optimizer benchmark --compare BEFORE AFTER [--format md|json|html]
   optimizer audit | update | uninstall | confirm <guard-id> [--force]
   optimizer ssh-close-port <port> (explicit; only after NEW-session proof)
   optimizer --help | --version
@@ -59,6 +61,34 @@ while [[ $# -gt 0 ]]; do
       shift || true
       export EXTRA
     fi
+    ;;
+  --out)
+    BENCH_OUT="${2:-bench-out}"
+    export BENCH_OUT
+    shift 2
+    ;;
+  --iperf-server)
+    BENCH_IPERF="${2:-}"
+    export BENCH_IPERF
+    shift 2
+    ;;
+  --install-deps)
+    export SRV_TUNE_INSTALL_DEPS=1
+    shift
+    ;;
+  --compare)
+    BENCH_CMP_A="${2:-}"
+    BENCH_CMP_B="${3:-}"
+    export BENCH_CMP_A BENCH_CMP_B
+    shift 3 2>/dev/null || {
+      printf 'error: --compare needs BEFORE AFTER files\n' >&2
+      exit 2
+    }
+    ;;
+  --format)
+    BENCH_FORMAT="${2:-md}"
+    export BENCH_FORMAT
+    shift 2
     ;;
   --profile)
     PROFILE="${2:-}"
@@ -210,8 +240,19 @@ explain)
   source "$SRV_TUNE_ROOT/lib/modules.sh"
   module_explain "${EXTRA:-}"
   ;;
-benchmark | update | uninstall)
-  printf '%s: not yet implemented in v0.1 (MVP = scanner + backup/rollback)\n' "$CMD" >&2
-  exit 3
+benchmark)
+  if [[ -n "${BENCH_CMP_A:-}" ]]; then
+    bash "$SRV_TUNE_ROOT/bench/compare.sh" "$BENCH_CMP_A" "$BENCH_CMP_B" --format="${BENCH_FORMAT:-md}"
+    exit $?
+  fi
+  args=("$SRV_TUNE_ROOT/bench/bench.sh" "${BENCH_OUT:-bench-out}")
+  if [[ -n "${BENCH_IPERF:-}" ]]; then
+    args+=("--iperf-server=$BENCH_IPERF")
+  fi
+  if [[ "${SRV_TUNE_INSTALL_DEPS:-0}" == "1" ]]; then
+    args+=("--install-deps")
+  fi
+  bash "${args[@]}"
   ;;
+update | uninstall) ;;
 esac
