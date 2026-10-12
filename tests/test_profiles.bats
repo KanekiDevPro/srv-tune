@@ -55,11 +55,11 @@ exit 0
 EOF
   chmod +x "$SRV_TUNE_TMP/stubbin/sshd"
   export SRV_TUNE_SSHD_BIN="$SRV_TUNE_TMP/stubbin/sshd"
-  run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --profile generic --only ssh --with-ssh <<< $'\nSSH-YES\n'
+  run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --profile generic --only ssh --with-ssh <<<$'\nSSH-YES\n'
   [ "$status" -eq 0 ]
   [ -f "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf" ]
   rm -f "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
-  run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --profile generic --only ssh --with-ssh <<< $'\nnope\n'
+  run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --profile generic --only ssh --with-ssh <<<$'\nnope\n'
   [ "$status" -ne 0 ]
   [[ "$output" == *"aborted"* ]]
   [ ! -e "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf" ]
@@ -87,7 +87,7 @@ EOF
 
 @test "interactive profile default applies without --profile" {
   _setup_p4
-  run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --only limits <<< $'\n'
+  run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --only limits <<<$'\n'
   [ "$status" -eq 0 ]
   [ -f "$SRV_TUNE_SYSROOT/etc/security/limits.d/00-srv-tune.conf" ]
 }
@@ -109,8 +109,8 @@ EOF
 }
 
 @test "i18n keys match between en and fa" {
-  en_keys="$(grep -E '^    [a-z_]+\)' "$SRV_TUNE_ROOT/lib/i18n/en.sh" | sed -E 's/^ +([a-z_]+)\).*/\1/' | sort)"
-  fa_keys="$(grep -E '^    [a-z_]+\)' "$SRV_TUNE_ROOT/lib/i18n/fa.sh" | sed -E 's/^ +([a-z_]+)\).*/\1/' | sort)"
+  en_keys="$(grep -E '^[[:space:]]*[a-z_]+\)' "$SRV_TUNE_ROOT/lib/i18n/en.sh" | sed -E 's/^ *([a-z_]+)\).*/\1/' | sort)"
+  fa_keys="$(grep -E '^[[:space:]]*[a-z_]+\)' "$SRV_TUNE_ROOT/lib/i18n/fa.sh" | sed -E 's/^ *([a-z_]+)\).*/\1/' | sort)"
   [ "$en_keys" = "$fa_keys" ]
   [ -n "$en_keys" ]
 }

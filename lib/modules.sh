@@ -60,25 +60,25 @@ profile_file() {
       m="${m##*/}"
       if [[ ! -f "$root/modules/$m.sh" ]]; then
         case "$m" in
-          security | cleanup | docker | nginx | db) ;;
-          *)
-            printf 'error: --config %s lists unknown module: %s\n' "$custom" "$m" >&2
-            return 1
-            ;;
+        security | cleanup | docker | nginx | db) ;;
+        *)
+          printf 'error: --config %s lists unknown module: %s\n' "$custom" "$m" >&2
+          return 1
+          ;;
         esac
       fi
     done
     while IFS= read -r line; do
       case "$line" in
-        '' | \#* | modules=*) continue ;;
+      '' | \#* | modules=*) continue ;;
       esac
       k="$(printf '%s' "$line" | cut -d= -f1)"
       case "$k" in
-        ssh_mode | low_ram) ;;
-        *)
-          printf 'error: --config %s has unsupported key: %s (allowed: modules, ssh_mode, low_ram)\n' "$custom" "$k" >&2
-          return 1
-          ;;
+      ssh_mode | low_ram) ;;
+      *)
+        printf 'error: --config %s has unsupported key: %s (allowed: modules, ssh_mode, low_ram)\n' "$custom" "$k" >&2
+        return 1
+        ;;
       esac
     done <"$custom"
     printf '%s\n' "$custom"
