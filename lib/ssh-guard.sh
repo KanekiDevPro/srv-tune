@@ -79,11 +79,14 @@ EOF
   # Independent timer: systemd-run transient if available, else nohup fallback
   # (disowned: survives crash/disconnect of this session).
   if guard_use_systemd; then
-    if systemd-run --quiet --on-active="${timeout}" --unit "srv-tune-guard-${backup_id}" --timer-property=AccuracySec=5 \
-      "$revert_script" >/dev/null 2>&1; then
+    local run_err
+    if run_err="$(systemd-run --quiet --on-active="${timeout}" --unit "srv-tune-guard-${backup_id}" --timer-property=AccuracySec=5 \
+      "$revert_script" 2>&1 >/dev/null)"; then
       printf '%s\n' "$backup_id"
       return 0
     fi
+    # Visible for post-mortem (integration job dumps this on failure).
+    printf '%s\n' "$run_err" >"$gdir/systemd-run.err"
   fi
   # shellcheck disable=SC2086
   nohup bash -c "sleep ${timeout}; test -f '$gdir/cancelled-${backup_id}' || bash '$revert_script'" >/dev/null 2>&1 &
@@ -142,7 +145,10 @@ guard_confirm() {
     elif [[ ! "$start" =~ ^[0-9]+$ ]] || [[ ! "$apply_ts" =~ ^[0-9]+$ ]]; then
       printf 'error: unreadable timestamps (start=%s apply=%s); refusing without --force\n' "$start" "$apply_ts" >&2
       return 1
-    elif [[ "$start" -le "$apply_ts" ]]; then
+    # Strictly-older only: date has 1s resolution, so same-second is
+    # ambiguous, not provably older (fast legit confirms land here). The
+    # tty rule above still rejects the identical session.
+    elif [[ "$start" -lt "$apply_ts" ]]; then
       printf 'error: this session started at %s, apply was at %s: only NEWER sessions may confirm. Use --force to override.\n' "$start" "$apply_ts" >&2
       return 1
     fi

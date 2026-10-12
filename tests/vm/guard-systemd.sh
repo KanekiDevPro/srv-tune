@@ -66,6 +66,11 @@ parent=$!
 wait_for 10 test -f "$SRV_TUNE_STATE_DIR/guard/origin-g1.tty"
 systemctl list-timers 'srv-tune-guard-g1.timer' | grep -q 'srv-tune-guard-g1' || {
   printf 'FAIL: transient timer not scheduled\n' >&2
+  printf '--- systemd-run error (if any) ---\n' >&2
+  cat "$SRV_TUNE_STATE_DIR/guard/systemd-run.err" >&2 || true
+  printf '--- timer status ---\n' >&2
+  systemctl status 'srv-tune-guard-g1.timer' >&2 || true
+  systemctl --version | head -n 1 >&2 || true
   exit 1
 }
 kill -9 "$parent"

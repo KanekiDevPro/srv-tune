@@ -5,31 +5,26 @@
 load bats_helper
 
 _setup_fw() {
-  # $1 = tool stub (ufw|nft|none)
+  # $1 = tool stub (ufw|nft|none). The tool is injected via
+  # SRV_TUNE_FIREWALL_TOOL (same override pattern as SRV_TUNE_DNS_TOOL), so
+  # no real firewall binary is ever consulted and PATH stays intact.
   export SRV_TUNE_SYSROOT="$SRV_TUNE_TMP/root"
   export SRV_TUNE_NO_GUARD=1
   export SSH_CONNECTION="203.0.113.7 54321 22"
   mkdir -p "$SRV_TUNE_TMP/stubbin" "$SRV_TUNE_SYSROOT/etc"
-  cat >"$SRV_TUNE_TMP/stubbin/ufw" <<EOF
-#!/usr/bin/env bash
-if [[ "$1" == "none" ]]; then exit 127; fi
-# Active firewall WITHOUT the ssh rule yet: forces the allow-first path.
-if [[ "\$1" == "status" ]]; then printf 'Status: active\n'; exit 0; fi
-printf 'stub-ufw: %s\n' "\$*" >>"$SRV_TUNE_TMP/ufw.log"
-exit 0
-EOF
-  chmod +x "$SRV_TUNE_TMP/stubbin/ufw"
-  cat >"$SRV_TUNE_TMP/stubbin/nft" <<'EOF'
+  case "$1" in
+  ufw) export SRV_TUNE_FIREWALL_TOOL=ufw ;;
+  nft) export SRV_TUNE_FIREWALL_TOOL=nftables ;;
+  none) export SRV_TUNE_FIREWALL_TOOL=none ;;
+  esac
+  if [[ "$1" == "nft" ]]; then
+    cat >"$SRV_TUNE_TMP/stubbin/nft" <<'EOF'
 #!/usr/bin/env bash
 exit ${SRV_TUNE_STUB_NFT_RC:-0}
 EOF
-  chmod +x "$SRV_TUNE_TMP/stubbin/nft"
-  if [[ "$1" == "none" ]]; then
-    mkdir -p "$SRV_TUNE_TMP/noufw"
-    export PATH="$SRV_TUNE_TMP/noufw:/usr/bin:/bin"
-  else
-    export PATH="$SRV_TUNE_TMP/stubbin:$PATH"
+    chmod +x "$SRV_TUNE_TMP/stubbin/nft"
   fi
+  export PATH="$SRV_TUNE_TMP/stubbin:$PATH"
   # shellcheck disable=SC1091
   source "$SRV_TUNE_ROOT/lib/modules.sh"
   module_load firewall
@@ -65,7 +60,6 @@ EOF
 
 @test "firewall nft renders an atomic ruleset with the ssh port" {
   _setup_fw nft
-  rm -f "$SRV_TUNE_TMP/stubbin/ufw"
   d="$SRV_TUNE_STATE_DIR/backups/f2"
   mkdir -p "$d"
   run firewall_apply "$d"
@@ -81,7 +75,6 @@ EOF
 
 @test "firewall refuses malformed ports instead of writing rules" {
   _setup_fw nft
-  rm -f "$SRV_TUNE_TMP/stubbin/ufw"
   printf 'abc\n' >"$SRV_TUNE_STATE_DIR/fw-pending-ports.log"
   tmp="$(mktemp)"
   run firewall_render_nft "$tmp"
@@ -139,7 +132,6 @@ EOF
 
 @test "nft apply touches only our table; foreign tables survive" {
   _setup_fw nft
-  rm -f "$SRV_TUNE_TMP/stubbin/ufw"
   _setup_nft_store
   tmp="$(mktemp)"
   firewall_render_nft "$tmp"
@@ -154,7 +146,6 @@ EOF
 
 @test "nft rollback removes only our table" {
   _setup_fw nft
-  rm -f "$SRV_TUNE_TMP/stubbin/ufw"
   _setup_nft_store
   tmp="$(mktemp)"
   firewall_render_nft "$tmp"

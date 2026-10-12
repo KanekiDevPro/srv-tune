@@ -55,6 +55,17 @@ while IFS= read -r f; do
   fi
 done < <(git ls-files | grep -E '^(optimizer\.sh|scanner/scan\.sh|tests/.*\.sh|tests/vm/.*\.sh)$')
 
+# 4. Workflow YAML must parse (a broken workflow fails the whole run with
+# no logs). Skipped only when python3/yaml is unavailable.
+if command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' 2>/dev/null; then
+  if ! python3 -c 'import yaml,sys; yaml.safe_load(open(".github/workflows/ci.yml"))' 2>/dev/null; then
+    printf 'YAML-FAIL: .github/workflows/ci.yml does not parse\n'
+    fail=1
+  fi
+else
+  printf 'warn: python3/yaml missing, workflow parse check skipped\n' >&2
+fi
+
 if [[ "$fail" == "0" ]]; then
   printf 'hygiene: clean\n'
 fi

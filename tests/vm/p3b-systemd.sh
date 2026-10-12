@@ -24,6 +24,9 @@ done
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 export SRV_TUNE_ROOT="$ROOT"
+# sshd -t requires the privilege separation dir even for config tests.
+mkdir -p /run/sshd
+chmod 755 /run/sshd
 export SRV_TUNE_TEST=1
 export SRV_TUNE_SYSROOT
 SRV_TUNE_SYSROOT="$(mktemp -d /tmp/srv-p3b-XXXXXX)"
@@ -80,7 +83,8 @@ done
 rm -rf /tmp/srv-p3b-fakeroot
 
 printf '=== 2. temporary sshd on 22222, ss-verified, then killed ===\n'
-sshd -f "$SRV_TUNE_SYSROOT/sshd_config.TUNNEL" -E "$SRV_TUNE_SYSROOT/sshd.log"
+SSHD_BIN="$(command -v sshd)"
+"$SSHD_BIN" -f "$SRV_TUNE_SYSROOT/sshd_config.TUNNEL" -E "$SRV_TUNE_SYSROOT/sshd.log"
 tries=0
 while [[ "$tries" -lt 10 ]]; do
   if ss -tlnp 2>/dev/null | grep -q ':22222 '; then
@@ -97,6 +101,7 @@ printf 'PASS: temp sshd listens on 22222 (runner port 22 untouched)\n'
 
 printf '=== 3. nft -c on the generated ruleset (check-only) ===\n'
 if command -v nft >/dev/null 2>&1; then
+  export SRV_TUNE_FIREWALL_TOOL=nftables
   module_load firewall
   export SRV_TUNE_SSH_PORT=22222
   d="$SRV_TUNE_STATE_DIR/backups/nft"

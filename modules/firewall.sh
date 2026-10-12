@@ -6,6 +6,11 @@
 # shellcheck shell=bash
 
 firewall_tool() {
+  # SRV_TUNE_FIREWALL_TOOL overrides auto-detect (tests force the tool).
+  if [[ -n "${SRV_TUNE_FIREWALL_TOOL:-}" ]]; then
+    printf '%s\n' "$SRV_TUNE_FIREWALL_TOOL"
+    return 0
+  fi
   if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi 'active'; then
     printf 'ufw\n'
   elif command -v ufw >/dev/null 2>&1; then
