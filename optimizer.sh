@@ -68,6 +68,18 @@ while [[ $# -gt 0 ]]; do
     ONLY="${2:-}"
     shift 2
     ;;
+  --with-ssh)
+    export SRV_TUNE_WITH_SSH=1
+    shift
+    ;;
+  --with-firewall)
+    export SRV_TUNE_WITH_FIREWALL=1
+    shift
+    ;;
+  --config)
+    export SRV_TUNE_CUSTOM_PROFILE="$2"
+    shift 2
+    ;;
   --dry-run)
     DRY_RUN=1
     export SRV_TUNE_DRY_RUN="$DRY_RUN"
@@ -140,12 +152,15 @@ audit)
   cmd_locked_scan --recommend-only
   ;;
 apply)
-  [[ -z "$PROFILE" ]] && {
-    printf 'error: apply requires --profile X\n' >&2
-    exit 2
-  }
   # shellcheck disable=SC1091
   source "$SRV_TUNE_ROOT/lib/modules.sh"
+  if [[ -z "$PROFILE" ]]; then
+    # Interactive selection, default = scanner recommendation (One Enter).
+    # --yes without --profile takes the recommendation silently.
+    rec="$(bash "$SRV_TUNE_ROOT/scanner/scan.sh" --recommend-only 2>/dev/null | awk '/^profile:/{print $2}' || true)"
+    [[ -z "$rec" ]] && rec="generic"
+    PROFILE="$(ui_menu "$(t choose_profile)" "$rec" generic web database docker vpn-tunnel low-ram custom)"
+  fi
   if ! preflight_check; then
     printf 'error: preflight blocks apply (see above)\n' >&2
     exit 2

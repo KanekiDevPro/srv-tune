@@ -37,7 +37,7 @@ _setup_apply() {
   _setup_apply
   run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --profile generic --only bogus --yes
   [ "$status" -ne 0 ]
-  [[ "$output" == *"matched no module"* ]]
+  [[ "$output" == *"unknown module"* ]]
 }
 
 @test "apply stops at first failure and keeps files intact" {
