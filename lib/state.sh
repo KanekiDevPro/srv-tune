@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # State directories and applied-changes log.
 # No silent fallbacks: TMPDIR is TEST-only (SRV_TUNE_TEST=1). Root never uses
 # world-writable state paths.

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # ssh-guard integration with REAL systemd-run (GitHub runners boot systemd).
 # Temp files only: never touches the runner's sshd/network config.
 # Run as root: sudo bash tests/vm/guard-systemd.sh

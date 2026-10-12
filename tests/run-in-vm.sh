@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Runs inside a real VM with systemd.
 # shellcheck shell=bash
 set -euo pipefail

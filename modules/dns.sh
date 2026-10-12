@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # dns: benchmark candidate resolvers live, apply fastest via resolved,
 # resolv.conf or netplan; cloud-init respected; rollback on broken resolution.
 # DoT stays off unless port 853 is reachable (then it is only OFFERED).

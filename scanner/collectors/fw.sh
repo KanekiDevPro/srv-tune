@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Firewall + ports collector (read-only).
 # shellcheck shell=bash
 

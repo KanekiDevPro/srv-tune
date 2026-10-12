@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # Lock release on normal exit, error, INT and TERM — every available backend.
 # flock backend: kernel frees fd locks on death; mkdir backend relies on the
 # trap (SRV_TUNE_LOCK_BACKEND=mkdir forces it portably).

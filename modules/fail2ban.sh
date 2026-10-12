@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # fail2ban: jail.d drop-in with the session source in ignoreip, backend=systemd.
 # Never jails the operator's current address. Best-effort service handling.
 # Contract: fail2ban_detect|recommend|apply|verify. 0 ok, 2 skip, 1 failure.

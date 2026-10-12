@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Scanner orchestrator: read-only. Human report + JSON + score + profile.
 # shellcheck shell=bash
 set -euo pipefail

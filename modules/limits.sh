@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # limits: nofile/nproc from RAM and CPU (hard <= fs.nr_open), systemd
 # DefaultLimitNOFILE drop-ins, core dumps off by default (debug opt-in).
 # Contract: limits_detect|recommend|apply|verify. 0 ok, 2 skip, 1 failure.

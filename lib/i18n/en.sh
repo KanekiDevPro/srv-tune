@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # English UI strings.
 # shellcheck shell=bash
 

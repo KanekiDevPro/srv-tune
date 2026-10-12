@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # mirror: benchmark distro mirrors live, swap only the URI, verify with
 # apt update; pip/npm/docker registry mirrors are tool-gated file writes.
 # Benchmarks: 10s timeout, max 4 parallel, contacted hosts always printed.

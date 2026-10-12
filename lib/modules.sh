@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # P3a module framework: profiles, --only filter, SYSROOT sandboxing,
 # detect/recommend/apply/verify/rollback orchestration with auto-rollback.
 # Module contract: <m>_detect | <m>_recommend | <m>_apply <backup_dir> |

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Launch Multipass VM for systemd tests (needs systemd; containers lack it).
 # Usage: tests/vm/launch-multipass.sh [ubuntu-24.04|ubuntu-22.04]
 # shellcheck shell=bash

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Backup + atomic write. Every file is backed up before change with manifest.
 # shellcheck shell=bash
 

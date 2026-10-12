@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # P4: profiles, dangerous-module gating, interactive paths, i18n parity.
 # shellcheck shell=bash
 
@@ -45,6 +46,7 @@ _setup_p4() {
   export SRV_TUNE_SSH_MODE=ADMIN SRV_TUNE_SSH_USER=testuser
   export SRV_TUNE_TEST_USER_HOME="$SRV_TUNE_TMP/home/testuser"
   export SRV_TUNE_NO_GUARD=1
+  export SRV_TUNE_WITH_SSH=1
   mkdir -p "$SRV_TUNE_TEST_USER_HOME/.ssh"
   printf 'ssh-ed25519 AAAAvalidkey testuser@host\n' >"$SRV_TUNE_TEST_USER_HOME/.ssh/authorized_keys"
   chmod 700 "$SRV_TUNE_TEST_USER_HOME/.ssh"
@@ -55,14 +57,23 @@ exit 0
 EOF
   chmod +x "$SRV_TUNE_TMP/stubbin/sshd"
   export SRV_TUNE_SSHD_BIN="$SRV_TUNE_TMP/stubbin/sshd"
-  run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --profile generic --only ssh --with-ssh <<<$'\nSSH-YES\n'
+  # Typed consent is read from stdin even on non-tty (explicit beats default).
+  run env SRV_TUNE_TEST=1 bash -c 'source "$1/lib/modules.sh"; run_apply generic ssh' bash "$SRV_TUNE_ROOT" <<<$'SSH-YES\n'
   [ "$status" -eq 0 ]
   [ -f "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf" ]
   rm -f "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
-  run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --profile generic --only ssh --with-ssh <<<$'\nnope\n'
+  run env SRV_TUNE_TEST=1 bash -c 'source "$1/lib/modules.sh"; run_apply generic ssh' bash "$SRV_TUNE_ROOT" <<<$'nope\n'
   [ "$status" -ne 0 ]
   [[ "$output" == *"aborted"* ]]
   [ ! -e "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf" ]
+}
+
+@test "blanket confirm refuses on non-tty without --yes" {
+  _setup_p4
+  run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --profile generic --only limits <<<$'\n'
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"not a terminal"* ]]
+  [ ! -e "$SRV_TUNE_SYSROOT/etc/security/limits.d/00-srv-tune.conf" ]
 }
 
 @test "non-interactive --with-ssh --yes needs no typing" {
@@ -85,11 +96,19 @@ EOF
   [ -f "$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf" ]
 }
 
-@test "interactive profile default applies without --profile" {
+@test "recommended profile applies without --profile when confirmed" {
   _setup_p4
-  run env SRV_TUNE_TEST=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --only limits <<<$'\n'
+  run env SRV_TUNE_TEST=1 SRV_TUNE_ASSUME_YES=1 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --only limits <<<$'\n'
   [ "$status" -eq 0 ]
   [ -f "$SRV_TUNE_SYSROOT/etc/security/limits.d/00-srv-tune.conf" ]
+}
+
+@test "non-tty without --yes never applies" {
+  _setup_p4
+  run env SRV_TUNE_TEST=1 SRV_TUNE_ASSUME_YES=0 bash "$SRV_TUNE_ROOT/optimizer.sh" apply --profile generic --only limits <<<$'\n'
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"not a terminal"* ]]
+  [ ! -e "$SRV_TUNE_SYSROOT/etc/security/limits.d/00-srv-tune.conf" ]
 }
 
 @test "custom --config applies its modules, rejects unknown ones" {

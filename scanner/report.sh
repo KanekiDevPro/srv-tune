@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Scoring + profile recommendation + prioritized list (pure function over env).
 # Inputs: KEY=VALUE vars in environment. Outputs: SCORE, PROFILE, RECS.
 # shellcheck shell=bash

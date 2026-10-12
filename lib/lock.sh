@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Lock to prevent concurrent runs. flock if present, else mkdir fallback.
 # No silent fallbacks: TMPDIR is TEST-only (SRV_TUNE_TEST=1). In normal mode
 # a missing /run fails with a clear error. Root never uses world-writable

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # ssh: ADMIN (default) / TUNNEL / CUSTOM. Drop-in 00-srv-tune.conf only
 # (first-match-wins), sshd -t validation, reload-not-restart, socket vs
 # service handling, firewall port first, guard + NEW-session confirm.

@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # backup/rollback: restore, partial failure, idempotent re-run.
 # shellcheck shell=bash
 

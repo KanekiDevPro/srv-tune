@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Hygiene gate (mirrors CI): fails on CRLF bytes and missing exec bits.
 # Executable allowlist: directly-executed scripts. Sourced libs stay 644.
 # shellcheck shell=bash

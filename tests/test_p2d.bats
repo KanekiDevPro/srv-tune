@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # P2d: dry-run diff output, safe apply, health checks, preflight tiers.
 # NOTE: bats `run` executes external commands only, so lib functions always
 # run inside `bash -c 'source ...; func ...'` wrappers (never `run func`).

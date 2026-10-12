@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Small portable utilities. No GNU-only flags.
 # shellcheck shell=bash
 

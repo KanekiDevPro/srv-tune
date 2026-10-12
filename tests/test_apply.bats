@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # apply wiring: profile + --only + dry-run + stop-on-failure, all sandboxed.
 # shellcheck shell=bash
 

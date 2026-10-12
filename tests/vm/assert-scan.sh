@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Assert scan quality on real Linux: fields the scanner must not report as
 # unknown when the image guarantees the source exists.
 # Usage: tests/vm/assert-scan.sh <outdir>
