@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # SSH collector (read-only, parses effective config).
 # shellcheck shell=bash
 

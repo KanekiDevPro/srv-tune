@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # installer/update/uninstall: sandboxed prefix, checksum gates, no-apply rule.
 # shellcheck shell=bash
 

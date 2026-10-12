@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # Regression tests for the 3 P1 bugs + strict-mode (set -e/pipefail) audit.
 # Bug 1: list_recommendations exited 1 under set -e when the last filter was
 #   false (function exit status = failed [[ ]]), aborting scan.sh.

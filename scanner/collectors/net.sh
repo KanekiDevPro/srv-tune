@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Network collector (read-only, bounded network with timeouts).
 # shellcheck shell=bash
 

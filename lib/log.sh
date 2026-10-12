@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Logging helpers. English only (logs stay English per policy).
 # shellcheck shell=bash
 

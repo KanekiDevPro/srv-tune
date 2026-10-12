@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # ssh-guard: independent timer, NEW-session confirm rule, real auto-revert.
 # systemd is stubbed (PATH); the nohup path runs for real with timeout=1.
 # shellcheck shell=bash

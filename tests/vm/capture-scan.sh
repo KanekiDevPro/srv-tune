@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Capture scanner output next to manual commands, as root and non-root.
 # Usage: tests/vm/capture-scan.sh <outdir>
 # shellcheck shell=bash

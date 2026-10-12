@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # ssh module: ADMIN key gate, TUNNEL artifacts, validation, guard wiring.
 # All file writes go to SYSROOT sandboxes; no daemon is ever touched here.
 # shellcheck shell=bash

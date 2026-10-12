@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Launch LXD VM for systemd tests.
 # Usage: tests/vm/launch-lxd.sh [ubuntu:24.04]
 # shellcheck shell=bash

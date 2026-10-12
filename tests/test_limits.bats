@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # limits module: computed values, sandboxed apply, verify, dry-run.
 # shellcheck shell=bash
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # P3b integration with REAL tools on temp files only (GitHub runners).
 # - sshd -t -f on a merged temp config (temp host keys) for ADMIN + TUNNEL.
 # - Temporary sshd on port 22222, verified with ss, then killed. Port 22 and

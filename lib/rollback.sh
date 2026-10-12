@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Rollback from manifest. rollback [id] | list-backups.
 # Continues past per-file failures and reports them; exit 0 = fully restored,
 # exit 1 = one or more entries failed (see stderr). Re-running is safe.

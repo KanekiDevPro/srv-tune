@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # firewall: ufw or nftables (iptables = hands-off note). Never enables anything
 # without the current SSH port allowed first; default-deny only under guard.
 # nftables validates with nft -c and applies atomically with nft -f.

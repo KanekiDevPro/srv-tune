@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # dry-run (exact diff + reason) and safe apply shared by all P3 modules.
 # Nothing here touches the system when DRY_RUN=1: apply_file prints the diff
 # and returns 0 without writing.

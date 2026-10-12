@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # network: BBR+fq when offered, TCP buffers from RAM and NIC speed, sanely
 # sized queues; containers get drop-ins without live writes.
 # NEVER: tcp_tw_recycle, ip_forward, rp_filter, accept_source_route

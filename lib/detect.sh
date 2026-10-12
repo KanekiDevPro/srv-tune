@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Portable detection helpers shared by scanner and modules.
 # Avoids GNU-only flags (uutils/coreutils compatible).
 # shellcheck shell=bash

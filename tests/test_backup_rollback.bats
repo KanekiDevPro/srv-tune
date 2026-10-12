@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # Backup/rollback + idempotency.
 # shellcheck shell=bash
 

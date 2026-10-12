@@ -1,0 +1,30 @@
+name: release
+on:
+  push:
+    tags:
+      - "v*.*.*"
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build tarball and checksums
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          test -f VERSION
+          git archive --format=tar.gz --prefix="srv-tune-${TAG}/" -o "srv-tune-${TAG}.tar.gz" "${TAG}"
+          (cd "$(pwd)" && sha256sum "srv-tune-${TAG}.tar.gz" > sha256sums.txt)
+          cat sha256sums.txt
+          test -s "srv-tune-${TAG}.tar.gz"
+      - name: Create DRAFT release with assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          gh release create "${TAG}" --draft --title "srv-tune ${TAG}" \
+            --notes "Draft release. Verify sha256sums.txt, then publish. Install: ./install.sh --tag ${TAG} --sha256 <sum> --yes" \
+            "srv-tune-${TAG}.tar.gz" sha256sums.txt

@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # firewall + fail2ban: sandboxed, session-cutting rules refused, ignoreip.
 # shellcheck shell=bash
 

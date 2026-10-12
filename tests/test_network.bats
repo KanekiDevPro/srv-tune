@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # network module: computed sysctl drop-in, container behavior, denylist.
 # shellcheck shell=bash
 

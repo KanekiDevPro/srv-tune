@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # srv-tune entrypoint: SCAN -> RECOMMEND -> APPLY -> VERIFY -> ROLLBACK-IF-BROKEN.
 # shellcheck shell=bash
 set -euo pipefail
@@ -201,7 +202,7 @@ apply)
     printf 'aborted\n'
     trap - EXIT INT TERM
     lock_release
-    exit 0
+    exit 1
   fi
   run_apply "$PROFILE" "$ONLY"
   rc=$?

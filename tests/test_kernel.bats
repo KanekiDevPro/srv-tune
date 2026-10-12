@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # kernel module: swappiness, zram, journald cap, scheduler rule, time detect.
 # shellcheck shell=bash
 

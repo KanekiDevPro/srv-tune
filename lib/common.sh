@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Shared constants and strict-mode helpers for srv-tune.
 # shellcheck shell=bash
 

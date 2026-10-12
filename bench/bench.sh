@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Benchmark capture: BEFORE/AFTER metrics using ONLY installed tools.
 # Missing tools are recorded as skipped, never installed (unless
 # --install-deps is passed explicitly). iperf3 runs ONLY with --iperf-server.

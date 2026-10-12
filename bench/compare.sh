@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Compare two bench.json captures. Formats: markdown (default), json, html.
 # Usage: bench/compare.sh BEFORE AFTER [--format md|json|html]
 # shellcheck shell=bash

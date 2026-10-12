@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # mirror module: benchmark, URI swap in both apt formats, verify, injection.
 # shellcheck shell=bash
 

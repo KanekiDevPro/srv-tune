@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # srv-tune installer: installs ONLY, never applies anything.
 # Usage:
 #   ./install.sh [--prefix /usr/local] [--yes]

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # SSH guard: independent timed auto-revert that survives crash/disconnect.
 # Confirm only via `optimizer confirm` from a NEW session.
 # SRV_TUNE_GUARD_BACKEND: auto (default) | systemd | nohup. Tests override it;

@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # Preflight tiers + dry-run contract placeholder.
 # shellcheck shell=bash
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Post-module health checks. Exit codes: 0 = healthy, 1 = broken, 2 = skipped
 # (tool missing; caller decides). Read-only unless stated.
 # shellcheck shell=bash

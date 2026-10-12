@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # benchmark: installed-tools only, skips recorded, compare renders 3 formats.
 # shellcheck shell=bash
 

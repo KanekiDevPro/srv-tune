@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Self-update: explicit only, checksum-verified, no telemetry.
 # Uses SRV_TUNE_RELEASE_BASE (default: GitHub releases) and refuses on any
 # checksum mismatch. Testable offline via file:// base URLs.

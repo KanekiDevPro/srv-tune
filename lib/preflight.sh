@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Pre-flight: root, disk space, network, OS support. Warn on EOL, never upgrade.
 # shellcheck shell=bash
 

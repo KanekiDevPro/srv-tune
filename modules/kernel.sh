@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # kernel/resources: swappiness, zram (low RAM + tooling only), journald cap,
 # I/O scheduler udev rule, time daemon detected never replaced (NTS kept).
 # Contract: kernel_detect|recommend|apply|verify. 0 ok, 2 skip, 1 failure.

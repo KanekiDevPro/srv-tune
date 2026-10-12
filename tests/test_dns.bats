@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # dns module: benchmark, sandboxed apply, verify, failure injection.
 # shellcheck shell=bash
 

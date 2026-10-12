@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Minimal i18n: UI strings via dictionaries, default en, --lang fa available.
 # shellcheck shell=bash
 

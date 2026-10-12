@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # Scanner: read-only, JSON valid, score 0-100, profile present.
 # shellcheck shell=bash
 
