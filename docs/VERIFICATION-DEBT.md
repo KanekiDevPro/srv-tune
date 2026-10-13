@@ -6,7 +6,7 @@ ran it on a disposable VM and recorded logs; only the human marks this).
 
 This file is updated in every PR.
 
-## Module matrix (v0.1.0 frozen scope)
+## Module matrix (v0.1.0 frozen + v0.2 additions)
 
 | Area | Status | What CI covers | Manual scenarios remaining |
 |---|---|---|---|
@@ -15,7 +15,9 @@ This file is updated in every PR.
 | network (sysctl) | unit-tested only | bats: BBR gating, denylist, container skip, BDP caps, dry-run | apply on VM, `sysctl -a` spot-check, reboot persistence of drop-in |
 | kernel (swappiness/zram/journald/scheduler/time) | unit-tested only | bats: profile swappiness, journald cap, chrony detect, NTS guard | zram on a <=1GB VM; scheduler rule on NVMe vs HDD; chrony makestep on 26.04 |
 | dns | unit-tested only | bats: benchmark parse, backend selection, cloud-init refusal, rollback on broken resolution, drill fallback | live benchmark + apply on VM (systemd-resolved vs resolv.conf), unconfirmed-guard revert of DNS |
-| mirror | unit-tested only | bats: swap guard, both apt formats, trust refusal, rollback on failed `apt update` | live mirror switch + `apt update` on 24.04 (deb822) and 12 (one-line) |
+| mirror (apt) | unit-tested only | bats: swap guard, both apt formats, trust refusal, rollback on failed `apt update` | live mirror switch + `apt update` on 24.04 (deb822) and 12 (one-line) |
+| pip_mirror / npm_mirror / docker_mirror (v0.2) | unit-tested only | bats: tool gating, sandbox apply/verify/dry-run, daemon.json never overwritten | live apply on a VM with each tool installed; registry reachability from target regions |
+| scan JSON schema (v0.2) | CI | bats file/validator checks (skipped without python3); scan-matrix assert-scan runs validate.py on real scans | none outstanding |
 | ssh (EXPERIMENTAL) | CI (temp-only) | bats: all modes, key gate, whitelist, port/socket, close-port, crash hook; integration: real `sshd -t -f`, temp daemon on 22222, real-timer revert | TESTING-VM §1/§2/§5/§6 on disposable VM; real reload on socket vs service |
 | firewall (EXPERIMENTAL) | CI (temp-only) | bats: ordering, nft scoping vs foreign tables, rollback; integration: real `nft -c` | TESTING-VM §3 incl. reboot persistence (human-only); real `ufw enable` |
 | fail2ban (EXPERIMENTAL) | CI (temp-only) | bats: ignoreip incl. session source, backend=systemd | TESTING-VM §4 (real ban of external IP, session never banned) |

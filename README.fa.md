@@ -7,7 +7,8 @@ SCAN -> RECOMMEND -> APPLY -> VERIFY -> ROLLBACK-IF-BROKEN.
 
 ## محدوده صادقانه
 
-- ماژول‌های اصلی = **پایدار**: ‏limits‏، ‏network‏، ‏kernel‏، ‏dns‏، ‏mirror‏.
+- ماژول‌های اصلی = **پایدار**: ‏limits‏، ‏network‏، ‏kernel‏، ‏dns‏، ‏mirror‏
+  (شامل ‏pip_mirror‏، ‏npm_mirror‏، ‏docker_mirror‏ فقط وقتی ابزار نصب است).
 - ‏ssh‏، ‏firewall‏، ‏fail2ban‏ = **آزمایشی**: فقط با فلگ صریح
   (‏--with-ssh‏ / ‏--with-firewall‏) و تایید تایپی، زیر گارد بازگشت خودکار.
   بدون خواندن ‏docs/TESTING-VM.md‏ استفاده نکنید.

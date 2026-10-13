@@ -273,6 +273,15 @@ module_explain() {
   mirror)
     printf 'mirror: handles sources.list AND deb822, benchmarks mirrors live, swaps only the URI, verifies with apt update; pip/npm/docker registry mirrors are opt-in file writes.\n'
     ;;
+  pip_mirror)
+    printf 'pip_mirror: system pip index-url from mirrors-pip.list; tool-gated, user configs untouched.\n'
+    ;;
+  npm_mirror)
+    printf 'npm_mirror: system npm registry from mirrors-npm.list (/etc/npmrc); tool-gated.\n'
+    ;;
+  docker_mirror)
+    printf 'docker_mirror: registry-mirrors written only when daemon.json is absent; existing files never merged.\n'
+    ;;
   ssh)
     printf 'ssh: ADMIN (key-only after verified key, deferred lockdown on confirm), TUNNEL (restricted user, client artifacts), CUSTOM (validated snippet). Drop-in sorts first; guard + NEW-session confirm; --with-ssh required.\n'
     ;;
