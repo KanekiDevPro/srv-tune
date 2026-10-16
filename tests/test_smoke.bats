@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # VM smoke harness: only the SAFE paths run here (refusals, helpers).
 # Live scenarios need a human-provided disposable VM alias; never localhost.
 # shellcheck shell=bash
