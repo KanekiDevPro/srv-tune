@@ -32,6 +32,14 @@ else
   grep -q '^{.*}$' "$JSON" || fail=1
 fi
 
+# Schema contract (stdlib-only validator travels with the repo).
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+if command -v python3 >/dev/null 2>&1; then
+  if ! python3 "$ROOT/scanner/validate.py" "$JSON"; then
+    fail=1
+  fi
+fi
+
 val() {
   grep -o "\"$1\":\"[^\"]*\"" "$JSON" | head -n 1 | cut -d'"' -f4
 }
