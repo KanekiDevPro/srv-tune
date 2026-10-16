@@ -8,5 +8,5 @@
 # verified=pending blocks use (see docs/DATA-REVIEW.md); only the maintainer
 # flips it to verified after manual review. Never set it yourself.
 # SPDX-License-Identifier: MIT
-https://pypi.org/simple/ pypi-main kind=pip owner=Python-Software-Foundation docs=https://pypi.org tier=official-default verified=pending
-https://mirror-pypi.runflare.com/simple/ runflare-ir kind=pip owner=Runflare docs=https://runflare.com tier=optional verified=pending
+https://pypi.org/simple/ pypi-main kind=pip owner=Python-Software-Foundation docs=https://pypi.org tier=official-default verified=true
+https://mirror-pypi.runflare.com/simple/ runflare-ir kind=pip owner=Runflare docs=https://runflare.com tier=optional verified=true

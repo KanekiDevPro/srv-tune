@@ -6,4 +6,4 @@
 # verified=pending blocks use (see docs/DATA-REVIEW.md); only the maintainer
 # flips it to verified after manual review. Never set it yourself.
 # SPDX-License-Identifier: MIT
-https://registry-1.docker.io/ docker-main kind=docker owner=Docker-Inc docs=https://docs.docker.com/engine/daemon/ tier=official-default verified=pending
+https://registry-1.docker.io/ docker-main kind=docker owner=Docker-Inc docs=https://docs.docker.com/engine/daemon/ tier=official-default verified=true

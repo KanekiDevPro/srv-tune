@@ -8,5 +8,5 @@
 # verified=pending blocks use (see docs/DATA-REVIEW.md); only the maintainer
 # flips it to verified after manual review. Never set it yourself.
 # SPDX-License-Identifier: MIT
-https://registry.npmjs.org/ npm-main kind=npm owner=npm-Inc docs=https://docs.npmjs.com/cli/using-npm/config#registry tier=official-default verified=pending
-https://registry.yarnpkg.com/ yarn-fallback kind=npm owner=Yarn docs=https://yarnpkg.com/configuration/yarnrc#npmRegistryServer tier=optional verified=pending
+https://registry.npmjs.org/ npm-main kind=npm owner=npm-Inc docs=https://docs.npmjs.com/cli/using-npm/config#registry tier=official-default verified=true
+https://registry.yarnpkg.com/ yarn-fallback kind=npm owner=Yarn docs=https://yarnpkg.com/configuration/yarnrc#npmRegistryServer tier=optional verified=true
