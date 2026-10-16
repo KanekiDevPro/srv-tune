@@ -34,9 +34,9 @@ never by assertion.
   review 2026-10-16 (memory-written owner/docs accepted by the reviewer).
   Row 6 (185.51.200.2 conflict) stays pending until the operator is
   attributed. Release gate passes only when zero entries are pending.
-- [ ] 185.51.200.2 ownership conflict (was `electrotm`, third-party README
-  says Shecan secondary). Relabeled `unknown-owner (conflict)`, pending.
-  See `docs/DATA-REVIEW.md` row 6.
+- [ ] 185.51.200.2 ownership conflict: RESOLVED 2026-10-16 by maintainer
+  decision — disputed entry deleted outright instead of attributed
+  (was `electrotm`, third-party README said Shecan secondary).
 - [ ] `release.yml` pending-gate never fired on a real tag push (runs only on
   `v*.*.*`). Next release attempt will exercise it (expected FAIL while
   entries are pending — that is the gate working).
