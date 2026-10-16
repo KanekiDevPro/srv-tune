@@ -138,6 +138,10 @@ while [[ $# -gt 0 ]]; do
     fi
     shift 2
     ;;
+  --with-dot)
+    export SRV_TUNE_WITH_DOT=1
+    shift
+    ;;
   --config)
     export SRV_TUNE_CUSTOM_PROFILE="$2"
     shift 2

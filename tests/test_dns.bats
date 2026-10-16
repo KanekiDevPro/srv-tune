@@ -160,3 +160,82 @@ EOF
   [ "$status" -ne 0 ]
   [[ "$output" == *"unknown --dns-extra ID"* ]]
 }
+
+@test "dns recommend offers DoT only for reachable winners" {
+  _setup_dns ok resolv.conf
+  export SRV_TUNE_DOT_PROBE=open
+  run dns_recommend
+  unset SRV_TUNE_DOT_PROBE
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"853 reachable"* ]]
+  [[ "$output" == *"stays off unless"* ]]
+  export SRV_TUNE_DOT_PROBE=closed
+  run dns_recommend
+  unset SRV_TUNE_DOT_PROBE
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"not offered"* ]]
+  [[ "$output" != *"853 reachable"* ]]
+}
+
+@test "dns --with-dot enables DoT on the resolved backend" {
+  _setup_dns ok resolv.conf
+  mkdir -p "$SRV_TUNE_SYSROOT/run/systemd/resolve"
+  printf '#!/usr/bin/env bash\nexit 0\n' >"$SRV_TUNE_TMP/stubbin/systemctl"
+  chmod +x "$SRV_TUNE_TMP/stubbin/systemctl"
+  export SRV_TUNE_WITH_DOT=1
+  export SRV_TUNE_DOT_PROBE=open
+  export SRV_TUNE_STUB_GETENT_RC=0
+  d="$SRV_TUNE_STATE_DIR/backups/d7"
+  mkdir -p "$d"
+  run dns_apply "$d"
+  unset SRV_TUNE_WITH_DOT SRV_TUNE_DOT_PROBE SRV_TUNE_STUB_GETENT_RC
+  [ "$status" -eq 0 ]
+  grep -q "^DNSOverTLS=yes" "$SRV_TUNE_SYSROOT/etc/systemd/resolved.conf.d/00-srv-tune.conf"
+  run dns_verify
+  [ "$status" -eq 0 ]
+}
+
+@test "dns --with-dot refuses an unreachable winner" {
+  _setup_dns ok resolv.conf
+  mkdir -p "$SRV_TUNE_SYSROOT/run/systemd/resolve"
+  printf '#!/usr/bin/env bash\nexit 0\n' >"$SRV_TUNE_TMP/stubbin/systemctl"
+  chmod +x "$SRV_TUNE_TMP/stubbin/systemctl"
+  export SRV_TUNE_WITH_DOT=1
+  export SRV_TUNE_DOT_PROBE=closed
+  d="$SRV_TUNE_STATE_DIR/backups/d8"
+  mkdir -p "$d"
+  run dns_apply "$d"
+  unset SRV_TUNE_WITH_DOT SRV_TUNE_DOT_PROBE
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"853"* ]]
+  [ ! -e "$SRV_TUNE_SYSROOT/etc/systemd/resolved.conf.d/00-srv-tune.conf" ]
+}
+
+@test "dns --with-dot refuses a non-resolved backend" {
+  _setup_dns ok resolv.conf
+  export SRV_TUNE_WITH_DOT=1
+  export SRV_TUNE_DOT_PROBE=open
+  d="$SRV_TUNE_STATE_DIR/backups/d9"
+  mkdir -p "$d"
+  run dns_apply "$d"
+  unset SRV_TUNE_WITH_DOT SRV_TUNE_DOT_PROBE
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"systemd-resolved"* ]]
+}
+
+@test "dns netplan backend writes yaml" {
+  _setup_dns ok resolv.conf
+  mkdir -p "$SRV_TUNE_SYSROOT/etc/netplan"
+  printf '# test netplan\nnetwork:\n  version: 2\n' >"$SRV_TUNE_SYSROOT/etc/netplan/99-test.yaml"
+  printf '#!/usr/bin/env bash\nexit 0\n' >"$SRV_TUNE_TMP/stubbin/netplan"
+  chmod +x "$SRV_TUNE_TMP/stubbin/netplan"
+  export SRV_TUNE_STUB_GETENT_RC=0
+  d="$SRV_TUNE_STATE_DIR/backups/d10"
+  mkdir -p "$d"
+  run dns_apply "$d"
+  unset SRV_TUNE_STUB_GETENT_RC
+  [ "$status" -eq 0 ]
+  grep -q "1.1.1.1" "$SRV_TUNE_SYSROOT/etc/netplan/00-srv-tune.yaml"
+  run dns_verify
+  [ "$status" -eq 0 ]
+}
