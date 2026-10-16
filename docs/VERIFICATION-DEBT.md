@@ -30,9 +30,10 @@ This file is updated in every PR.
 Entries leave only with fresh evidence (CI link or manual-review signature),
 never by assertion.
 
-- [ ] DATA-REVIEW rows 1-18: all `verified=pending`. Owner/docs URLs are
-  written from memory, none fetched. Release is gated until a human reviews
-  (`tests/pre-publish.sh`, `release.yml`).
+- [ ] DATA-REVIEW rows: 16 of 17 flipped to `verified=true` per maintainer
+  review 2026-10-16 (memory-written owner/docs accepted by the reviewer).
+  Row 6 (185.51.200.2 conflict) stays pending until the operator is
+  attributed. Release gate passes only when zero entries are pending.
 - [ ] 185.51.200.2 ownership conflict (was `electrotm`, third-party README
   says Shecan secondary). Relabeled `unknown-owner (conflict)`, pending.
   See `docs/DATA-REVIEW.md` row 6.

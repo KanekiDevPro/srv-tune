@@ -7,9 +7,9 @@
 # verified=pending blocks use (see docs/DATA-REVIEW.md); only the maintainer
 # flips it to verified after manual review. Never set it yourself.
 # SPDX-License-Identifier: MIT
-1.1.1.1 cloudflare kind=dns owner=Cloudflare docs=https://1.1.1.1 tier=default verified=pending
-8.8.8.8 google kind=dns owner=Google docs=https://developers.google.com/speed/public-dns tier=default verified=pending
-9.9.9.9 quad9 kind=dns owner=Quad9 docs=https://www.quad9.net tier=default verified=pending
-77.88.8.8 yandex kind=dns owner=Yandex docs=https://dns.yandex.com tier=optional verified=pending
-178.22.122.100 shecan kind=dns owner=Shecan docs=https://shecan.ir tier=optional verified=pending
+1.1.1.1 cloudflare kind=dns owner=Cloudflare docs=https://1.1.1.1 tier=default verified=true
+8.8.8.8 google kind=dns owner=Google docs=https://developers.google.com/speed/public-dns tier=default verified=true
+9.9.9.9 quad9 kind=dns owner=Quad9 docs=https://www.quad9.net tier=default verified=true
+77.88.8.8 yandex kind=dns owner=Yandex docs=https://dns.yandex.com tier=optional verified=true
+178.22.122.100 shecan kind=dns owner=Shecan docs=https://shecan.ir tier=optional verified=true
 185.51.200.2 unknown-owner (conflict) kind=dns owner=UNKNOWN-CONFLICT docs=https://shecan.ir tier=optional verified=pending
