@@ -20,7 +20,7 @@ Legend: `reviewed by` stays empty until a human completes the row.
 | 3 | 9.9.9.9 (quad9, tier default) | Quad9 | https://www.quad9.net | `dig +time=2 +tries=1 @9.9.9.9 example.com` | ANSWER section with an `IN A` record |  |
 | 4 | 77.88.8.8 (yandex, tier optional) | Yandex | https://dns.yandex.com | `dig +time=2 +tries=1 @77.88.8.8 example.com` | ANSWER section with an `IN A` record |  |
 | 5 | 178.22.122.100 (shecan, tier optional) | Shecan | https://shecan.ir | `dig +time=2 +tries=1 @178.22.122.100 example.com` | ANSWER section with an `IN A` record |  |
-| 6 | 185.51.200.2 (unknown-owner conflict, tier optional) | UNKNOWN — CONFLICT: was labeled `electrotm`; a third-party README lists this IP as Shecan's secondary DNS. Do NOT guess. | open BOTH https://shecan.ir and https://electrotm.org and compare their published DNS lists | `dig +time=2 +tries=1 @185.51.200.2 example.com` then confirm which operator publishes this IP | Positive operator attribution before any other change |  |
+| 6 | ~~185.51.200.2~~ | REMOVED 2026-10-16 by maintainer decision (ownership disputed, not worth the risk; entry deleted, not verified) | — | — | — | maintainer 2026-10-16 |
 | 7 | ~~electrotm separate entry~~ | REMOVED: folded into row 6. The old `electrotm` label for 185.51.200.2 is unproven. | — | — | — |  |
 
 ## APT mirrors (`data/mirrors-debian.list`, `data/mirrors-ubuntu.list`)
