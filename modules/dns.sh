@@ -184,13 +184,49 @@ dns_recommend() {
     printf 'skip: neither dig nor drill installed (why: cannot benchmark; install dnsutils/ldnsutils or set resolvers manually)\n'
     return 0
   fi
+  local bench w1 w2
   printf 'benchmark (why: latency + failure rate from THIS server):\n'
-  dns_benchmark
+  bench="$(dns_benchmark)"
+  printf '%s\n' "$bench"
   printf 'pick: fastest with 0/2 failures as primary, second as secondary (why: redundancy)\n'
+  w1="$(printf '%s' "$bench" | awk '$2 != "down" {print $1}' | sed -n '1p')"
+  w2="$(printf '%s' "$bench" | awk '$2 != "down" {print $1}' | sed -n '2p')"
+  dns_dot_offer "$w1" "$w2"
+}
+
+# dns_dot_probe <ip> - 0 when TCP 853 answers, 1 when closed, 2 when the
+# host cannot test (no timeout tool). SRV_TUNE_DOT_PROBE=open|closed is a
+# test seam; production always probes the wire.
+dns_dot_probe() {
+  local ip="$1"
+  case "${SRV_TUNE_DOT_PROBE:-}" in
+  open) return 0 ;;
+  closed) return 1 ;;
+  esac
+  command -v timeout >/dev/null 2>&1 || return 2
+  timeout 3 bash -c 'echo > /dev/tcp/'"$ip"'/853' 2>/dev/null
+}
+
+# dns_dot_offer [ip...] - per-winner DoT reachability. An offer only, DoT
+# is never enabled here (dns_apply needs explicit --with-dot).
+dns_dot_offer() {
+  local ip rc
+  for ip in "$@"; do
+    [[ -z "$ip" ]] && continue
+    dns_dot_probe "$ip"
+    rc=$?
+    if [[ "$rc" == "0" ]]; then
+      printf 'dot: %s port 853 reachable (why: DoT stays off unless you pass --with-dot)\n' "$ip"
+    elif [[ "$rc" == "1" ]]; then
+      printf 'dot: %s port 853 closed (why: DoT not offered for this resolver)\n' "$ip"
+    else
+      printf 'dot: %s reachability unchecked (why: no timeout tool here; DoT not offered)\n' "$ip"
+    fi
+  done
 }
 
 dns_apply() {
-  local backup_dir="$1" backend winners w1 w2 tmp
+  local backup_dir="$1" backend winners w1 w2 tmp dot="no"
   if [[ "$(dns_tool)" == "none" ]]; then
     printf 'skip: neither dig nor drill, nothing to benchmark\n'
     return 2
@@ -217,10 +253,26 @@ dns_apply() {
   fi
   if [[ -z "$w2" ]]; then w2="$w1"; fi
   backend="$(dns_backend)"
+  # DoT is off by default and needs systemd-resolved: the stubs it writes
+  # elsewhere cannot speak TLS. Winners must prove port 853 first.
+  if [[ "${SRV_TUNE_WITH_DOT:-0}" == "1" ]]; then
+    if [[ "$backend" != "resolved" ]]; then
+      printf 'error: --with-dot needs the systemd-resolved backend (this host uses %s, which cannot do DoT)\n' "$backend" >&2
+      return 1
+    fi
+    local rip
+    for rip in "$w1" "$w2"; do
+      if ! dns_dot_probe "$rip"; then
+        printf 'error: refusing --with-dot: winner %s lacks reachable port 853\n' "$rip" >&2
+        return 1
+      fi
+    done
+    dot="yes"
+  fi
   if [[ "$backend" == "resolved" ]]; then
     tmp="$(mktemp)"
     {
-      printf '# srv-tune DNS (why: benchmarked fastest)\n[Resolve]\nDNS=%s %s\nFallbackDNS=1.1.1.1 8.8.8.8\nDNSOverTLS=no\n' "$w1" "$w2"
+      printf '# srv-tune DNS (why: benchmarked fastest)\n[Resolve]\nDNS=%s %s\nFallbackDNS=1.1.1.1 8.8.8.8\nDNSOverTLS=%s\n' "$w1" "$w2" "$dot"
     } >"$tmp"
     apply_file "$backup_dir" "$(sys_p /etc/systemd/resolved.conf.d/00-srv-tune.conf)" "$tmp" "fastest resolvers $w1 $w2" || return 1
     if [[ "${SRV_TUNE_DRY_RUN:-0}" != "1" && "${SRV_TUNE_TEST:-0}" != "1" ]]; then

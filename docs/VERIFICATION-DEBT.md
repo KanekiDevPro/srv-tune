@@ -23,6 +23,8 @@ This file tracks verification gaps. Entries leave only with fresh evidence
 - [ ] DoT offer path and netplan apply path in `modules/dns.sh` are covered
   only where tests reach them; dedicated DoT/netplan work is tracked as the
   Round 2 dns item, not here.
+  DONE (Round 2 dns item, this branch): DoT probe + recommend offer,
+  `--with-dot` fail-closed on resolved backend only, netplan backend test.
 
 ## Reconciliation warning
 

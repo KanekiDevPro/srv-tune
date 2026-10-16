@@ -21,6 +21,7 @@ srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-
 .RB [ \-\-with\-ssh ]
 .RB [ \-\-with\-firewall ]
 .RB [ \-\-with\-registry ]
+.RB [ \-\-with\-dot ]
 .RB [ \-\-mirror
 .IR URL ]
 .RB [ \-\-dns\-extra
@@ -103,6 +104,11 @@ Enlist firewall/fail2ban (typed FIREWALL-YES still required without
 Enlist pip/npm/docker registry mirrors (typed REGISTRY-YES still
 required without
 .BR \-\-yes ).
+.TP
+.B \-\-with\-dot
+Enlist DNS-over-TLS: applied only on the systemd-resolved backend and
+only when TCP port 853 is reachable on both winning resolvers (checked
+live; refused otherwise). Off by default.
 .TP
 .BR \-\-mirror " " \fIURL\fR
 Use this registry URL instead of the curated pick (https only). Also the
