@@ -17,15 +17,7 @@ pip_mirror_have() {
 }
 
 pip_mirror_url() {
-  local root="${SRV_TUNE_ROOT:-.}" line
-  while IFS= read -r line; do
-    case "$line" in
-    '' | \#*) continue ;;
-    esac
-    printf '%s\n' "$line" | awk '{print $1}'
-    return 0
-  done <"$root/data/mirrors-pip.list" 2>/dev/null
-  return 1
+  registry_pick_url "${SRV_TUNE_ROOT:-.}/data/mirrors-pip.list"
 }
 
 pip_mirror_detect() {
@@ -42,7 +34,8 @@ pip_mirror_recommend() {
     printf 'skip: pip not installed (why: nothing to configure)\n'
     return 0
   fi
-  printf 'index-url %s (why: first responsive entry in mirrors-pip.list)\n' "$(pip_mirror_url)"
+  printf 'index-url %s (why: curated entry, override with --mirror URL)\n' "$(pip_mirror_url)"
+  printf 'warn: registry mirrors are NOT signed like apt (why: a mirror operator can serve altered packages; review the owner/docs in data/mirrors-pip.list)\n'
 }
 
 pip_mirror_apply() {
@@ -64,7 +57,7 @@ pip_mirror_apply() {
 }
 
 pip_mirror_verify() {
-  local f
+  local f url
   f="$(sys_p /etc/pip.conf)"
   if [[ ! -f "$f" ]]; then
     printf 'error: pip.conf missing: %s\n' "$f" >&2
@@ -74,5 +67,10 @@ pip_mirror_verify() {
     printf 'error: index-url missing in %s\n' "$f" >&2
     return 1
   }
+  url="$(grep '^index-url' "$f" | head -n 1 | awk '{print $3}')"
+  if ! registry_reachable "$url"; then
+    printf 'error: mirror unreachable, rolling back: %s\n' "$url" >&2
+    return 1
+  fi
   return 0
 }

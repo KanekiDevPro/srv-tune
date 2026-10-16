@@ -17,15 +17,7 @@ npm_mirror_have() {
 }
 
 npm_mirror_url() {
-  local root="${SRV_TUNE_ROOT:-.}" line
-  while IFS= read -r line; do
-    case "$line" in
-    '' | \#*) continue ;;
-    esac
-    printf '%s\n' "$line" | awk '{print $1}'
-    return 0
-  done <"$root/data/mirrors-npm.list" 2>/dev/null
-  return 1
+  registry_pick_url "${SRV_TUNE_ROOT:-.}/data/mirrors-npm.list"
 }
 
 npm_mirror_detect() {
@@ -42,7 +34,8 @@ npm_mirror_recommend() {
     printf 'skip: npm not installed (why: nothing to configure)\n'
     return 0
   fi
-  printf 'registry %s (why: first responsive entry in mirrors-npm.list)\n' "$(npm_mirror_url)"
+  printf 'registry %s (why: curated entry, override with --mirror URL)\n' "$(npm_mirror_url)"
+  printf 'warn: registry mirrors are NOT signed like apt (why: a mirror operator can serve altered packages; review the owner/docs in data/mirrors-npm.list)\n'
 }
 
 npm_mirror_apply() {
@@ -64,7 +57,7 @@ npm_mirror_apply() {
 }
 
 npm_mirror_verify() {
-  local f
+  local f url
   f="$(sys_p /etc/npmrc)"
   if [[ ! -f "$f" ]]; then
     printf 'error: npmrc missing: %s\n' "$f" >&2
@@ -74,5 +67,10 @@ npm_mirror_verify() {
     printf 'error: registry= missing in %s\n' "$f" >&2
     return 1
   }
+  url="$(grep '^registry=' "$f" | head -n 1 | cut -d= -f2-)"
+  if ! registry_reachable "$url"; then
+    printf 'error: mirror unreachable, rolling back: %s\n' "$url" >&2
+    return 1
+  fi
   return 0
 }

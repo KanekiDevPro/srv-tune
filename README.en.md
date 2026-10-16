@@ -12,7 +12,8 @@ Read this in Persian: [README.fa.md](README.fa.md).
 
 - Core modules = **stable**: `limits`, `network` (sysctl), `kernel`
   (resources/time), `dns`, `mirror` (apt + `pip_mirror`, `npm_mirror`,
-  `docker_mirror` registry mirrors, tool-gated).
+  `docker_mirror` registry mirrors, tool-gated). Registry mirrors are NOT
+  signed like apt: review owner/docs in `data/` before use.
 - `ssh`, `firewall`, `fail2ban` = **EXPERIMENTAL**: they require explicit
   flags (`--with-ssh` / `--with-firewall`) plus an interactively typed
   confirmation, and every change is guarded with timed auto-revert. Do not

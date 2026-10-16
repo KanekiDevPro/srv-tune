@@ -1,2 +1,7 @@
-# Docker registry mirrors (opt-in, P3).
-https://registry-1.docker.io/ docker-main
+# Registry mirrors: curated entries only. Format per line:
+#   <https-url> <label> owner=<owner-name> docs=<docs-url> verified=<status>
+# Plain http:// URLs are rejected by the modules (HTTPS only).
+# verified=pending blocks release (see tests/pre-publish.sh); only the
+# maintainer flips it to verified after manual review. Never set it yourself.
+# SPDX-License-Identifier: MIT
+https://registry-1.docker.io/ docker-main owner=Docker-Inc docs=https://docs.docker.com/engine/daemon/ verified=pending

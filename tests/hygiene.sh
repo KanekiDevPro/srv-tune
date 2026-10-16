@@ -43,6 +43,21 @@ forbidden 'restart ssh\.service|restart sshd|restart ssh( |$)' 'ssh-service rest
 forbidden 'ssh/sshd_config([^._/d]|$)' 'main sshd_config edit (drop-in only)'
 # The mirror module only ever GREPS for these to refuse them.
 forbidden 'trusted=yes|Trusted: yes|allow-insecure|Allow-Insecure' 'weakened apt trust' 'weakens trust|refusing|refuse such|must not|never|grep -Eq'
+# Registry mirrors: HTTPS only, no insecure-registry/trusted-host anywhere.
+forbidden 'insecure-registries|trusted-host' 'insecure registry options'
+for f in modules/pip_mirror.sh modules/npm_mirror.sh modules/docker_mirror.sh data/mirrors-pip.list data/mirrors-npm.list data/mirrors-docker.list; do
+  if git grep -n -E -- 'http://' -- "$f" 2>/dev/null | grep -Ev 'HTTPS only|plain http|http://URLs|http:// URL' >/dev/null; then
+    printf 'FORBIDDEN plain-http in registry file:\n'
+    git grep -n -E -- 'http://' -- "$f" 2>/dev/null | grep -Ev 'HTTPS only|plain http|http://URLs|http:// URL' || true
+    fail=1
+  fi
+done
+# Registry modules touch system files only: no home dirs, no lockfiles.
+if git grep -n -E -- 'HOME|~/|package-lock|lockfile' -- modules/pip_mirror.sh modules/npm_mirror.sh modules/docker_mirror.sh 2>/dev/null >/dev/null; then
+  printf 'FORBIDDEN home-dir/lockfile reference in registry modules:\n'
+  git grep -n -E -- 'HOME|~/|package-lock|lockfile' -- modules/pip_mirror.sh modules/npm_mirror.sh modules/docker_mirror.sh 2>/dev/null || true
+  fail=1
+fi
 # NOTE: `systemctl restart ssh.socket` is INTENTIONALLY allowed: socket units
 # cannot reload ListenStream bindings; ssh.service/sshd must always reload
 # (covered by the ssh-service-restart rule above).

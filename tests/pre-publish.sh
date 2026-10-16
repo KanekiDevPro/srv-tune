@@ -66,7 +66,18 @@ while IFS= read -r f; do
 done < <(git ls-files)
 if [[ "$missing" == "1" ]]; then fail=1; fi
 
-# 6. Branch protection suggestion (report only, never applied here).
+# 6. Mirror data review gate: every entry in data/*.list carries
+# verified=<status>. While ANY entry is verified=pending the tree must NOT
+# be published. Only the maintainer flips entries to verified after manual
+# review of owner/docs; automation must NEVER do it.
+pending="$(git grep -n 'verified=pending' -- data/ 2>/dev/null | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)"
+if [[ -n "$pending" ]]; then
+  say 'FAIL: mirror data has verified=pending entries (manual review required):'
+  say "$pending"
+  fail=1
+fi
+
+# 7. Branch protection suggestion (report only, never applied here).
 say 'SUGGEST: protect the default branch (require PR + green CI, no force-push to main):'
 say '  gh api repos/{owner}/{repo}/branches/{main}/protection -X PUT -F required_status_checks[strict]=true -F enforce_admins=true -F required_pull_request_reviews=null -F restrictions=null'
 

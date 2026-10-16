@@ -10,6 +10,14 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Mirror data review gate
+        run: |
+          set -euo pipefail
+          if git grep -n 'verified=pending' -- data/ | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#'; then
+            printf 'FAIL: mirror data has verified=pending entries; manual review required before release\n' >&2
+            exit 1
+          fi
+          printf 'mirror data: no pending entries\n'
       - name: Build tarball and checksums
         run: |
           set -euo pipefail

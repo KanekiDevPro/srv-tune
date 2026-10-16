@@ -122,6 +122,14 @@ while [[ $# -gt 0 ]]; do
     export SRV_TUNE_WITH_FIREWALL=1
     shift
     ;;
+  --with-registry)
+    export SRV_TUNE_WITH_REGISTRY=1
+    shift
+    ;;
+  --mirror)
+    export SRV_TUNE_MIRROR_URL="${2:-}"
+    shift 2
+    ;;
   --config)
     export SRV_TUNE_CUSTOM_PROFILE="$2"
     shift 2

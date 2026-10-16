@@ -15,6 +15,9 @@ i18n_get() {
   type_firewall) printf 'Type FIREWALL-YES to apply firewall changes (anything else aborts)' ;;
   need_with_ssh) printf 'ssh needs --with-ssh plus typed confirmation (see risks above)' ;;
   need_with_firewall) printf 'firewall/fail2ban needs --with-firewall plus typed confirmation (see risks above)' ;;
+  need_with_registry) printf 'registry mirrors need --with-registry plus typed confirmation (see risks above)' ;;
+  risk_registry) printf 'RISK registry mirrors: NOT signed like apt; a mirror operator can serve altered packages. Review owner/docs in data/. HTTPS only. Never in default profiles.' ;;
+  type_registry) printf 'Type REGISTRY-YES to apply registry mirrors (anything else aborts)' ;;
   aborted) printf 'aborted by operator, nothing was changed' ;;
   *) return 1 ;;
   esac
