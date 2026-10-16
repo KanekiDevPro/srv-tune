@@ -1,8 +1,12 @@
-# Registry mirrors: curated entries only. Format per line:
-#   <https-url> <label> owner=<owner-name> docs=<docs-url> verified=<status>
+# Registry mirrors: curated entries only. Schema per line:
+#   <https-url> <id> kind=pip owner=<owner> docs=<docs-url> tier=<tier> verified=<status>
+# tier official-default = the origin itself: NEVER auto-selected as a mirror,
+#   offered only as "reset to official" via explicit --mirror <official-URL>.
+# tier optional = third-party mirror: default auto-pick, still behind
+#   --with-registry plus typed confirmation.
 # Plain http:// URLs are rejected by the modules (HTTPS only).
-# verified=pending blocks release (see tests/pre-publish.sh); only the
-# maintainer flips it to verified after manual review. Never set it yourself.
+# verified=pending blocks use (see docs/DATA-REVIEW.md); only the maintainer
+# flips it to verified after manual review. Never set it yourself.
 # SPDX-License-Identifier: MIT
-https://pypi.org/simple/ pypi-main owner=Python-Software-Foundation docs=https://pypi.org verified=pending
-https://mirror-pypi.runflare.com/simple/ runflare-ir owner=Runflare docs=https://runflare.com verified=pending
+https://pypi.org/simple/ pypi-main kind=pip owner=Python-Software-Foundation docs=https://pypi.org tier=official-default verified=pending
+https://mirror-pypi.runflare.com/simple/ runflare-ir kind=pip owner=Runflare docs=https://runflare.com tier=optional verified=pending

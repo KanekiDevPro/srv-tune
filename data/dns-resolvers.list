@@ -1,11 +1,15 @@
 # Public DNS resolvers benchmarked live (latency + failure rate).
-# Format per line: <ip> <label> owner=<owner-name> docs=<docs-url> verified=<status>
-# verified=pending blocks release (see tests/pre-publish.sh); only the
-# maintainer flips it to verified after manual review. Never set it yourself.
+# Schema per line:
+#   <ip> <id> kind=dns owner=<owner> docs=<docs-url> tier=<default|optional> verified=<status>
+# tier default = automatic benchmark pool (provider-grade anycast only).
+# tier optional = regional/sanction-bypass/third-party: NEVER auto-selected,
+#   used only with --dns-extra ID after a typed disclosure.
+# verified=pending blocks use (see docs/DATA-REVIEW.md); only the maintainer
+# flips it to verified after manual review. Never set it yourself.
 # SPDX-License-Identifier: MIT
-1.1.1.1 cloudflare owner=Cloudflare docs=https://1.1.1.1 verified=pending
-8.8.8.8 google owner=Google docs=https://developers.google.com/speed/public-dns verified=pending
-9.9.9.9 quad9 owner=Quad9 docs=https://www.quad9.net verified=pending
-77.88.8.8 yandex owner=Yandex docs=https://dns.yandex.com verified=pending
-178.22.122.100 shecan owner=Shecan docs=https://shecan.ir verified=pending
-185.51.200.2 electrotm owner=ElectroTM docs=https://electrotm.org verified=pending
+1.1.1.1 cloudflare kind=dns owner=Cloudflare docs=https://1.1.1.1 tier=default verified=pending
+8.8.8.8 google kind=dns owner=Google docs=https://developers.google.com/speed/public-dns tier=default verified=pending
+9.9.9.9 quad9 kind=dns owner=Quad9 docs=https://www.quad9.net tier=default verified=pending
+77.88.8.8 yandex kind=dns owner=Yandex docs=https://dns.yandex.com tier=optional verified=pending
+178.22.122.100 shecan kind=dns owner=Shecan docs=https://shecan.ir tier=optional verified=pending
+185.51.200.2 unknown-owner (conflict) kind=dns owner=UNKNOWN-CONFLICT docs=https://shecan.ir tier=optional verified=pending
