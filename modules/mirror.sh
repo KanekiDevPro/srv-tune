@@ -33,6 +33,9 @@ mirror_candidates() {
     case "$line" in
     '' | \#*) continue ;;
     esac
+    # Fail closed: unverified entries are invisible unless a human
+    # verified them (or the test-only override is active).
+    data_entry_verified "$line" || continue
     url="$(printf '%s' "$line" | awk '{print $1}')"
     [[ -n "$url" ]] && printf '%s\n' "$url"
   done <"$f"

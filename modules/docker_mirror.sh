@@ -38,6 +38,7 @@ docker_mirror_recommend() {
   fi
   printf 'registry-mirrors %s (why: curated entry, override with --mirror URL)\n' "$(docker_mirror_url)"
   printf 'warn: registry mirrors are NOT signed like apt (why: a mirror operator can serve altered images)\n'
+  printf 'official reset: pass --mirror <official-URL> to return to the origin (why: official-default origins are never auto-selected as mirrors)\n'
   printf 'warn: registry-mirrors needs a daemon RESTART (why: not in the SIGHUP-reloadable set per Docker docs); restart affects running containers and is NEVER automatic\n'
 }
 

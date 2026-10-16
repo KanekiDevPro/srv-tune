@@ -36,6 +36,7 @@ pip_mirror_recommend() {
   fi
   printf 'index-url %s (why: curated entry, override with --mirror URL)\n' "$(pip_mirror_url)"
   printf 'warn: registry mirrors are NOT signed like apt (why: a mirror operator can serve altered packages; review the owner/docs in data/mirrors-pip.list)\n'
+  printf 'official reset: pass --mirror <official-URL> to return to the origin (why: official-default origins are never auto-selected as mirrors)\n'
 }
 
 pip_mirror_apply() {

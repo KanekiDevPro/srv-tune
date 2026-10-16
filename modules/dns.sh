@@ -27,16 +27,75 @@ dns_probe_host() {
 }
 
 dns_candidates() {
-  local root="${SRV_TUNE_ROOT:-.}" f line ip
+  local root="${SRV_TUNE_ROOT:-.}" f line ip tier
   f="$root/data/dns-resolvers.list"
   [[ -f "$f" ]] || return 0
+  # Automatic pool = tier default only. Optional resolvers join only via
+  # --dns-extra (see dns_extra_candidates): they are never auto-selected.
   while IFS= read -r line; do
     case "$line" in
     '' | \#*) continue ;;
     esac
+    data_entry_verified "$line" || continue
+    tier="$(data_entry_tier "$line")"
+    [[ "$tier" == "default" ]] || continue
     ip="$(printf '%s' "$line" | awk '{print $1}')"
     [[ -n "$ip" ]] && printf '%s\n' "$ip"
   done <"$f"
+  dns_extra_candidates "$f"
+}
+
+# dns_extra_candidates <listfile> - IPs for --dns-extra IDs (comma-separated).
+# Each ID must exist with tier optional (verified or test override applies).
+# Unknown IDs fail loudly with the valid list.
+dns_extra_candidates() {
+  local f="$1" extra="${SRV_TUNE_DNS_EXTRA:-}" name
+  [[ -z "$extra" ]] && return 0
+  local IFS=','
+  # shellcheck disable=SC2086
+  for name in $extra; do
+    name="$(printf '%s' "$name" | tr -d ' ')"
+    [[ -z "$name" ]] && continue
+    dns_extra_one "$f" "$name" || return 1
+  done
+}
+
+# dns_extra_one <listfile> <id> - print the IP for one optional entry.
+dns_extra_one() {
+  local f="$1" want="$2" line id ip tier
+  while IFS= read -r line; do
+    case "$line" in
+    '' | \#*) continue ;;
+    esac
+    data_entry_verified "$line" || continue
+    id="$(printf '%s' "$line" | awk '{print $2}')"
+    [[ "$id" == "$want" ]] || continue
+    tier="$(data_entry_tier "$line")"
+    if [[ "$tier" != "optional" ]]; then
+      printf 'error: --dns-extra %s is tier %s, not optional (extra flag is only for optional resolvers)\n' "$want" "$tier" >&2
+      return 1
+    fi
+    ip="$(printf '%s' "$line" | awk '{print $1}')"
+    [[ -n "$ip" ]] && printf '%s\n' "$ip"
+    return 0
+  done <"$f"
+  printf 'error: unknown --dns-extra ID: %s (valid optional IDs: %s)\n' "$want" "$(dns_optional_ids "$f")" >&2
+  return 1
+}
+
+# dns_optional_ids <listfile> - comma list of usable optional IDs (for errors).
+dns_optional_ids() {
+  local f="$1" line id out=""
+  while IFS= read -r line; do
+    case "$line" in
+    '' | \#*) continue ;;
+    esac
+    data_entry_verified "$line" || continue
+    [[ "$(data_entry_tier "$line")" == "optional" ]] || continue
+    id="$(printf '%s' "$line" | awk '{print $2}')"
+    [[ -n "$id" ]] && out="${out}${out:+,}$id"
+  done <"$f"
+  printf '%s\n' "$out"
 }
 
 # dns_probe_one <ip> <probe> <out> - single probe via dig (or drill
@@ -138,6 +197,17 @@ dns_apply() {
   fi
   # shellcheck disable=SC1091
   source "$(dirname "${BASH_SOURCE[0]}")/../lib/dryrun.sh"
+  # shellcheck disable=SC1091
+  declare -F t >/dev/null 2>&1 || source "$(dirname "${BASH_SOURCE[0]}")/../lib/i18n.sh"
+  # shellcheck disable=SC1091
+  declare -F ui_type_confirm >/dev/null 2>&1 || source "$(dirname "${BASH_SOURCE[0]}")/../lib/ui.sh"
+  if [[ -n "${SRV_TUNE_DNS_EXTRA:-}" ]]; then
+    printf '%s\n' "$(t risk_dns_extra)"
+    if ! ui_type_confirm "$(t type_dns_extra)" "DNS-EXTRA-YES"; then
+      printf '%s\n' "$(t aborted)"
+      return 1
+    fi
+  fi
   winners="$(dns_winners)"
   w1="$(printf '%s' "$winners" | sed -n '1p')"
   w2="$(printf '%s' "$winners" | sed -n '2p')"
