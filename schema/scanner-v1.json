@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/KanekiDevPro/srv-tune/schema/scanner-v1.json",
+  "title": "srv-tune scanner output v1",
+  "description": "Read-only scan facts plus score and recommended profile. All values are strings; *_KB and SCORE match ^[0-9]+$.",
+  "type": "object",
+  "required": [
+    "OS_ID", "OS_VERSION", "KERNEL", "INIT", "VIRT", "CLOUD_INIT",
+    "CPU_CORES", "AES_NI", "RAM_KB", "SWAP_KB", "DISK_TYPE", "DISK_FREE_KB",
+    "IFACE", "MTU", "IPV6", "CC", "QDISC", "DNS", "MIRROR", "PUBLIC_IP",
+    "SSH_PORT", "SSH_ROOT", "SSH_PASS", "SSH_LISTEN", "SSH_OK",
+    "FIREWALL", "OPEN_PORTS", "FAIL2BAN", "TUNED", "DOCKER",
+    "OS_TIER", "SCORE", "PROFILE"
+  ],
+  "properties": {
+    "SCORE": { "type": "string", "pattern": "^[0-9]+$" },
+    "PROFILE": { "type": "string", "enum": ["generic", "web", "database", "docker", "vpn-tunnel", "low-ram", "custom"] },
+    "OS_TIER": { "type": "string", "enum": ["tier1", "tier2", "best-effort", "eol", "unsupported"] }
+  }
+}
