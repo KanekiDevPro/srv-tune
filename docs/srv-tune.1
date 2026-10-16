@@ -1,0 +1,146 @@
+.TH SRV-TUNE 1 "2026-10-16" "srv-tune 0.1.0" "System administration"
+.SH NAME
+srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-BROKEN
+.SH SYNOPSIS
+.B srv-tune scan
+.RB [ \-\-json
+.IR FILE ]
+.RB [ \-\-lang
+.IR fa | en ]
+.br
+.B srv-tune recommend
+.RB [ \-\-lang
+.IR fa | en ]
+.br
+.B srv-tune apply \-\-profile
+.I NAME
+.RB [ \-\-only
+.IR mod [,mod]]
+.RB [ \-\-dry\-run ]
+.RB [ \-\-yes ]
+.RB [ \-\-with\-ssh ]
+.RB [ \-\-with\-firewall ]
+.RB [ \-\-with\-registry ]
+.RB [ \-\-mirror
+.IR URL ]
+.RB [ \-\-dns\-extra
+.IR NAME ]
+.br
+.B srv-tune rollback
+.RI [ id ]
+|
+.B list-backups
+|
+.B status
+|
+.BI explain " module"
+.br
+.B srv-tune benchmark
+.RB [ \-\-out
+.IR DIR ]
+|
+.BR \-\-compare
+.IR BEFORE " " AFTER
+.br
+.B srv-tune audit
+|
+.B update
+|
+.B uninstall
+|
+.BI confirm " guard-id"
+.SH DESCRIPTION
+srv-tune tunes a Linux server in five auditable stages: read-only
+.BR scan ,
+profile
+.BR recommend ,
+.BR apply ,
+.BR verify ,
+and automatic rollback when a health check fails.
+Every changed file is backed up first; writes are atomic temp-to-move
+drop-ins; re-runs are idempotent.
+.PP
+Core modules (stable): limits, network, kernel, dns, mirror (apt).
+Registry mirrors (pip_mirror, npm_mirror, docker_mirror) are tool-gated
+and need
+.BR \-\-with\-registry .
+ssh, firewall and fail2ban are EXPERIMENTAL: they need an explicit flag
+plus a typed confirmation, guarded by a timed auto-revert.
+.PP
+Registry mirrors are NOT signed like apt. DNS tier-optional resolvers see
+every query. Nothing from
+.I data/
+is used until a human verifies it (see DATA-REVIEW in the source tree).
+.SH OPTIONS
+.TP
+.BR \-\-profile " " \fINAME\fR
+generic, web, database, docker, vpn-tunnel, low-ram, or custom (with
+.BR \-\-config ).
+Without
+.B \-\-profile
+the scanner recommendation is offered on one Enter.
+.TP
+.BR \-\-only " " \fImod\fR[,\fImod\fR]
+Apply only the named modules.
+.TP
+.B \-\-dry\-run
+Show the exact diff plus the reason for every setting. Changes nothing.
+.TP
+.B \-\-yes
+Non-interactive: accept prompts and skip typed confirmations. The
+.BR \-\-with\-*
+opt-in flags are still required.
+.TP
+.B \-\-with\-ssh
+Enlist the ssh module (typed SSH-YES still required without
+.BR \-\-yes ).
+.TP
+.B \-\-with\-firewall
+Enlist firewall/fail2ban (typed FIREWALL-YES still required without
+.BR \-\-yes ).
+.TP
+.B \-\-with\-registry
+Enlist pip/npm/docker registry mirrors (typed REGISTRY-YES still
+required without
+.BR \-\-yes ).
+.TP
+.BR \-\-mirror " " \fIURL\fR
+Use this registry URL instead of the curated pick (https only). Also the
+way back to an official origin, which is never auto-selected.
+.TP
+.BR \-\-dns\-extra " " \fINAME\fR
+Add a tier-optional resolver by ID (repeatable, comma-separated). Prints
+the third-party disclosure and needs typed DNS-EXTRA-YES without
+.BR \-\-yes .
+.TP
+.BR \-\-lang " " \fIfa|en\fR
+UI language (default en).
+.TP
+.BR \-\-json " " \fIFILE\fR
+Write the scan report as JSON (scan only).
+.SH SAFETY
+Always run
+.B \-\-dry\-run
+first. Keep one proven session open for anything touching ssh/firewall
+and confirm from a NEW session. Registry and DNS-extra changes print
+their risks and need typed phrases. No telemetry, no hidden network calls.
+.SH FILES
+.I profiles/*.conf
+\- shipped profiles (registry modules are never listed there).
+.br
+.I data/*.list
+\- curated mirrors/resolvers with owner, docs, tier and verified fields.
+.br
+.I /var/lib/srv-tune/backups/<id>/
+\- per-apply backups restored by
+.BR rollback .
+.SH EXIT STATUS
+0 on success (or clean skip), 1 on module failure with rollback, 2 on
+usage/preflight errors.
+.SH SEE ALSO
+.BR ssh (1),
+.BR ufw (8),
+.BR nft (8)
+.PP
+Source tree docs: README.en.md, README.fa.md, docs/TESTING-VM.md,
+docs/DATA-REVIEW.md.

@@ -4,6 +4,12 @@ All notable changes, newest first. Format: Conventional Commits subjects.
 
 ## Unreleased
 
+- Data hardening: kind/tier/verified schema for data lists, fail-closed
+  verified-only gate, DNS default/optional tiers with --dns-extra disclosure,
+  official-default origins never auto-selected, DATA-REVIEW checklist.
+- Shell completion (completion/srv-tune.bash) and man page (docs/srv-tune.1),
+  both shipped by install.sh.
+
 - P5: benchmark/compare, installer with checksum gates, verified update,
   uninstall, release workflow, docs set.
 - P4: profiles UX, --with-ssh/--with-firewall opt-in with typed
