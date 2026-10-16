@@ -45,8 +45,11 @@ never by assertion.
   `verified=pending` gate to silence them.
 - [ ] Full `bats tests/` suite times out on Windows dev hosts; Linux CI is
   the source of truth (`lint-test` + `uutils-check` jobs).
-- [ ] DoT offer path and netplan apply path in `modules/dns.sh`: covered on
-  child branch `v0.2/dns-dot-netplan`, pending its merge.
+- [ ] DoT offer path and netplan apply path in `modules/dns.sh` are covered
+  where tests reach them (DoT probe + recommend offer, `--with-dot`
+  fail-closed on resolved backend only, netplan backend test — all on this
+  branch); dedicated VM-level DoT/netplan runs remain human-only. Pending
+  this branch's merge.
 
 ## Manual scenario tracker (TESTING-VM.md)
 

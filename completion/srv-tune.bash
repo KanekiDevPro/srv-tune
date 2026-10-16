@@ -5,7 +5,7 @@
 # shellcheck shell=bash
 
 _srv_tune_cmds="scan recommend apply rollback list-backups status benchmark explain audit update uninstall confirm ssh-close-port"
-_srv_tune_flags="--profile --only --dry-run --yes --lang --json --with-ssh --with-firewall --with-registry --mirror --dns-extra --config --out --iperf-server --install-deps --compare --format --force --help --version"
+_srv_tune_flags="--profile --only --dry-run --yes --lang --json --with-ssh --with-firewall --with-registry --with-dot --mirror --dns-extra --config --out --iperf-server --install-deps --compare --format --force --help --version"
 _srv_tune_profiles="generic web database docker vpn-tunnel low-ram custom"
 _srv_tune_modules="limits network kernel dns mirror pip_mirror npm_mirror docker_mirror ssh firewall fail2ban"
 

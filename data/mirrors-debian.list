@@ -7,5 +7,5 @@
 # signatures); the HTTPS-only rule applies to pip/npm/docker registry lists.
 # SPDX-License-Identifier: MIT
 http://deb.debian.org/debian/ debian-main kind=apt owner=Debian docs=https://www.debian.org/mirror/ tier=default verified=pending
-http://mirror.hetzner.com/debian/ hetzner kind=apt owner=Hetzner docs=https://mirror.hetzner.com tier=default verified=pending
+http://mirror.hetzner.com/debian/ hetzner kind=apt owner=Hetzner docs=https://mirror.hetzner.com tier=optional verified=pending
 http://ftp.ir.debian.org/debian/ debian-ir kind=apt owner=Debian docs=https://www.debian.org/mirror/ tier=default verified=pending

@@ -365,7 +365,7 @@ module_explain() {
     printf 'kernel: swappiness for servers, zram on <=1GB only with tooling present, journald cap from free disk, I/O scheduler udev rule by disk type, time daemon detected never replaced (NTS preserved), containers skipped.\n'
     ;;
   dns)
-    printf 'dns: benchmarks candidate resolvers live (latency plus failure rate) with timeouts, honors systemd-resolved/resolv.conf/netplan, respects cloud-init, rolls back when resolution breaks. Auto pool is tier default only; tier optional resolvers join solely via --dns-extra after typed disclosure, never auto-selected.\n'
+    printf 'dns: benchmarks candidate resolvers live (latency plus failure rate) with timeouts, honors systemd-resolved/resolv.conf/netplan, respects cloud-init, rolls back when resolution breaks. Auto pool is tier default only; tier optional resolvers join solely via --dns-extra after typed disclosure, never auto-selected. DoT stays off unless --with-dot and port 853 is reachable on both winners (resolved backend only).\n'
     ;;
   mirror)
     printf 'mirror: handles sources.list AND deb822, benchmarks mirrors live, swaps only the URI, verifies with apt update; pip/npm/docker registry mirrors are opt-in file writes.\n'

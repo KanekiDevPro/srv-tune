@@ -44,6 +44,28 @@ Legend: `reviewed by` stays empty until a human completes the row.
 | 17 | https://registry.yarnpkg.com/ (yarn-fallback, optional) | Yarn | https://yarnpkg.com/configuration/yarnrc#npmRegistryServer | `curl -sI https://registry.yarnpkg.com/ \| head -1` | `HTTP/2 200` |  |
 | 18 | https://registry-1.docker.io/ (docker-main, official-default) | Docker Inc | https://docs.docker.com/engine/daemon/ | `curl -s -o /dev/null -w '%{http_code}' https://registry-1.docker.io/v2/` | `401` (auth challenge realm — the hub answers anonymously with 401, that IS healthy) |  |
 
+## Existence unconfirmed
+
+The entries below may not exist at all (regional mirrors come and go, and
+their owner/docs rows are from memory). Existence itself is unverified —
+run the exact command and compare before anything else. Never mark verified
+on a timeout or an error page: those mean "still unconfirmed", not "dead".
+
+- `http://ftp.ir.debian.org/debian/` — run exactly:
+  `curl -sI --max-time 15 http://ftp.ir.debian.org/debian/dists/stable/InRelease | head -1`
+  Unconfirmed until this prints a `200` line.
+- `http://ir.archive.ubuntu.com/ubuntu/` — run exactly:
+  `curl -sI --max-time 15 http://ir.archive.ubuntu.com/ubuntu/dists/noble/InRelease | head -1`
+  Unconfirmed until this prints a `200` line.
+- `http://mirror.hetzner.com/debian/` — run exactly:
+  `curl -sI --max-time 15 http://mirror.hetzner.com/debian/dists/stable/InRelease | head -1`
+  Unconfirmed until this prints a `200` line. (Tier already demoted to
+  optional: third-party mirrors are never in the default pool.)
+- `http://mirror.hetzner.com/ubuntu/` — run exactly:
+  `curl -sI --max-time 15 http://mirror.hetzner.com/ubuntu/dists/noble/InRelease | head -1`
+  Unconfirmed until this prints a `200` line. (Tier already demoted to
+  optional: third-party mirrors are never in the default pool.)
+
 ## How to flip an entry
 
 1. Complete the row: open the official page, run the command, compare.
