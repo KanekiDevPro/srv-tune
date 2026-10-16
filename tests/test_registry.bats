@@ -15,6 +15,8 @@ exit ${SRV_TUNE_STUB_CURL_RC:-0}
 EOF
   chmod +x "$SRV_TUNE_TMP/stubbin/curl"
   export PATH="$SRV_TUNE_TMP/stubbin:$PATH"
+  # Lists are all verified=pending: the test-only override unlocks them.
+  export SRV_TUNE_ALLOW_UNVERIFIED=1
   # shellcheck disable=SC1091
   source "$SRV_TUNE_ROOT/lib/modules.sh"
 }
@@ -73,11 +75,14 @@ _mktool() {
   [ "$status" -eq 2 ]
   _mktool docker
   export SRV_TUNE_DOCKER_BIN="$SRV_TUNE_TMP/stubbin/docker"
+  # Docker list holds only the official-default origin: reach it explicitly.
+  export SRV_TUNE_MIRROR_URL="https://docker-mirror.example.com/"
   run docker_mirror_apply "$d"
   unset SRV_TUNE_DOCKER_BIN
   [ "$status" -eq 0 ]
   grep -q "registry-mirrors" "$SRV_TUNE_SYSROOT/etc/docker/daemon.json"
   run docker_mirror_verify
+  unset SRV_TUNE_MIRROR_URL
   [ "$status" -eq 0 ]
   if ! command -v python3 >/dev/null 2>&1 && ! command -v jq >/dev/null 2>&1; then
     skip "no JSON merge tool on this host; covered on Linux CI"
@@ -85,8 +90,9 @@ _mktool() {
   # Pre-existing keys survive apply AND rollback.
   printf '{"debug": true, "log-level": "warn"}\n' >"$SRV_TUNE_SYSROOT/etc/docker/daemon.json"
   export SRV_TUNE_DOCKER_BIN="$SRV_TUNE_TMP/stubbin/docker"
+  export SRV_TUNE_MIRROR_URL="https://docker-mirror.example.com/"
   run docker_mirror_apply "$d"
-  unset SRV_TUNE_DOCKER_BIN
+  unset SRV_TUNE_DOCKER_BIN SRV_TUNE_MIRROR_URL
   [ "$status" -eq 0 ]
   grep -q '"debug"' "$SRV_TUNE_SYSROOT/etc/docker/daemon.json"
   grep -q '"log-level"' "$SRV_TUNE_SYSROOT/etc/docker/daemon.json"
@@ -108,12 +114,13 @@ _mktool() {
   fi
   _mktool docker
   export SRV_TUNE_DOCKER_BIN="$SRV_TUNE_TMP/stubbin/docker"
+  export SRV_TUNE_MIRROR_URL="https://docker-mirror.example.com/"
   mkdir -p "$SRV_TUNE_SYSROOT/etc/docker"
   printf '{oops\n' >"$SRV_TUNE_SYSROOT/etc/docker/daemon.json"
   d="$SRV_TUNE_STATE_DIR/backups/k2"
   mkdir -p "$d"
   run docker_mirror_apply "$d"
-  unset SRV_TUNE_DOCKER_BIN
+  unset SRV_TUNE_DOCKER_BIN SRV_TUNE_MIRROR_URL
   [ "$status" -ne 0 ]
   grep -q '{oops' "$SRV_TUNE_SYSROOT/etc/docker/daemon.json"
 }
@@ -138,12 +145,13 @@ _mktool() {
   _mktool docker
   export SRV_TUNE_DOCKER_BIN="$SRV_TUNE_TMP/stubbin/docker"
   export SRV_TUNE_JSON_TOOL=none
+  export SRV_TUNE_MIRROR_URL="https://docker-mirror.example.com/"
   mkdir -p "$SRV_TUNE_SYSROOT/etc/docker"
   printf '{"debug": true}\n' >"$SRV_TUNE_SYSROOT/etc/docker/daemon.json"
   d="$SRV_TUNE_STATE_DIR/backups/k3"
   mkdir -p "$d"
   run docker_mirror_apply "$d"
-  unset SRV_TUNE_JSON_TOOL SRV_TUNE_DOCKER_BIN
+  unset SRV_TUNE_JSON_TOOL SRV_TUNE_DOCKER_BIN SRV_TUNE_MIRROR_URL
   [ "$status" -ne 0 ]
   [[ "$output" == *"python3 or jq"* ]]
   grep -q '"debug"' "$SRV_TUNE_SYSROOT/etc/docker/daemon.json"
@@ -154,6 +162,26 @@ _mktool() {
 @test "registry data lists use https only" {
   run awk '!/^#/ && NF>0 && $1 !~ /^https:\/\// {print FILENAME": "$0; bad=1} END {exit bad}' "$SRV_TUNE_ROOT/data/mirrors-pip.list" "$SRV_TUNE_ROOT/data/mirrors-npm.list" "$SRV_TUNE_ROOT/data/mirrors-docker.list"
   [ "$status" -eq 0 ]
+}
+
+@test "official-default origins are never auto-selected" {
+  _setup_reg
+  module_load pip_mirror
+  # pypi.org is tier official-default: the auto-pick must skip it.
+  run pip_mirror_url
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"runflare"* ]]
+  [[ "$output" != *"pypi.org"* ]]
+  module_load npm_mirror
+  run npm_mirror_url
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"yarnpkg"* ]]
+  [[ "$output" != *"registry.npmjs.org"* ]]
+  # Docker lists only the origin: auto-pick finds nothing (reset needs
+  # an explicit --mirror URL).
+  module_load docker_mirror
+  run docker_mirror_url
+  [ "$status" -ne 0 ]
 }
 
 @test "--mirror URL is honored when https" {

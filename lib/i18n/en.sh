@@ -18,6 +18,8 @@ i18n_get() {
   need_with_registry) printf 'registry mirrors need --with-registry plus typed confirmation (see risks above)' ;;
   risk_registry) printf 'RISK registry mirrors: NOT signed like apt; a mirror operator can serve altered packages. Review owner/docs in data/. HTTPS only. Never in default profiles.' ;;
   type_registry) printf 'Type REGISTRY-YES to apply registry mirrors (anything else aborts)' ;;
+  risk_dns_extra) printf 'RISK extra resolvers: a third-party resolver sees EVERY query and may return altered answers (censorship, hijack). Use only resolvers you trust. Extras are never auto-selected.' ;;
+  type_dns_extra) printf 'Type DNS-EXTRA-YES to use extra resolvers (anything else aborts)' ;;
   aborted) printf 'aborted by operator, nothing was changed' ;;
   *) return 1 ;;
   esac

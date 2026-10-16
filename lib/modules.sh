@@ -105,21 +105,62 @@ registry_require_https() {
   esac
 }
 
+# data_entry_field <line> <field> - value of key=value token, or empty.
+data_entry_field() {
+  printf '%s' "$1" | grep -oE "(^| )$2=[^ ]*" | tail -n 1 | cut -d= -f2-
+}
+
+# data_entry_tier <line> - tier value, defaulting to "default" for
+# entries that predate the schema (fail-open for tier, fail-closed for
+# verified: see data_entry_verified).
+data_entry_tier() {
+  local tier
+  tier="$(data_entry_field "$1" tier)"
+  [[ -z "$tier" ]] && tier="default"
+  printf '%s\n' "$tier"
+}
+
+# data_entry_verified <line> - 0 when the entry may be used. Entries with
+# anything but verified=true are IGNORED unless the test-only override
+# SRV_TUNE_ALLOW_UNVERIFIED=1 is set together with SRV_TUNE_TEST=1.
+# Automation must NEVER set verified=true; only a human flips it after
+# manual review (see docs/DATA-REVIEW.md).
+data_entry_verified() {
+  local val
+  val="$(data_entry_field "$1" verified)"
+  [[ "$val" == "true" ]] && return 0
+  if [[ "${SRV_TUNE_TEST:-0}" == "1" && "${SRV_TUNE_ALLOW_UNVERIFIED:-0}" == "1" ]]; then
+    return 0
+  fi
+  return 1
+}
+
 # registry_pick_url <listfile> - explicit --mirror wins (validated), else the
 # first curated entry, announced loudly (never silent auto-selection).
 registry_pick_url() {
-  local list="$1" url=""
+  local list="$1" url="" line cand
   if [[ -n "${SRV_TUNE_MIRROR_URL:-}" ]]; then
     url="$SRV_TUNE_MIRROR_URL"
     printf 'mirror: explicit --mirror %s\n' "$url" >&2
   else
-    url="$(awk '!/^#/ && NF>0 {print $1; exit}' "$list" 2>/dev/null || true)"
-    if [[ -n "$url" ]]; then
-      printf 'mirror: defaulting to first curated entry %s (override with --mirror URL)\n' "$url" >&2
-    fi
+    # First usable curated entry: verified only, official-default origins
+    # are NEVER auto-selected (reset to official via explicit --mirror URL).
+    while IFS= read -r line; do
+      case "$line" in
+      '' | \#*) continue ;;
+      esac
+      data_entry_verified "$line" || continue
+      [[ "$(data_entry_tier "$line")" == "official-default" ]] && continue
+      cand="$(printf '%s' "$line" | awk '{print $1}')"
+      if [[ -n "$cand" ]]; then
+        url="$cand"
+        printf 'mirror: defaulting to curated entry %s (override with --mirror URL)\n' "$url" >&2
+        break
+      fi
+    done <"$list" 2>/dev/null
   fi
   if [[ -z "$url" ]]; then
-    printf 'error: no registry mirror available\n' >&2
+    printf 'error: no verified registry mirror available (see docs/DATA-REVIEW.md; tests only: SRV_TUNE_ALLOW_UNVERIFIED=1 with SRV_TUNE_TEST=1)\n' >&2
     return 1
   fi
   registry_require_https "$url" || return 1
@@ -324,7 +365,7 @@ module_explain() {
     printf 'kernel: swappiness for servers, zram on <=1GB only with tooling present, journald cap from free disk, I/O scheduler udev rule by disk type, time daemon detected never replaced (NTS preserved), containers skipped.\n'
     ;;
   dns)
-    printf 'dns: benchmarks candidate resolvers live (latency plus failure rate) with timeouts, honors systemd-resolved/resolv.conf/netplan, respects cloud-init, rolls back when resolution breaks.\n'
+    printf 'dns: benchmarks candidate resolvers live (latency plus failure rate) with timeouts, honors systemd-resolved/resolv.conf/netplan, respects cloud-init, rolls back when resolution breaks. Auto pool is tier default only; tier optional resolvers join solely via --dns-extra after typed disclosure, never auto-selected.\n'
     ;;
   mirror)
     printf 'mirror: handles sources.list AND deb822, benchmarks mirrors live, swaps only the URI, verifies with apt update; pip/npm/docker registry mirrors are opt-in file writes.\n'

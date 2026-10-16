@@ -25,6 +25,29 @@ This file is updated in every PR.
 | release workflow | UNTESTED | none (no tag ever pushed; tagging is maintainer-only) | first release is a manual, watched procedure |
 | uutils coreutils / sudo-rs (26.04) | CI | uutils-check job: full bats + scanner smoke on ubuntu:26.04; flavors recorded | none outstanding |
 
+## Round 2 data hardening (open)
+
+Entries leave only with fresh evidence (CI link or manual-review signature),
+never by assertion.
+
+- [ ] DATA-REVIEW rows 1-18: all `verified=pending`. Owner/docs URLs are
+  written from memory, none fetched. Release is gated until a human reviews
+  (`tests/pre-publish.sh`, `release.yml`).
+- [ ] 185.51.200.2 ownership conflict (was `electrotm`, third-party README
+  says Shecan secondary). Relabeled `unknown-owner (conflict)`, pending.
+  See `docs/DATA-REVIEW.md` row 6.
+- [ ] `release.yml` pending-gate never fired on a real tag push (runs only on
+  `v*.*.*`). Next release attempt will exercise it (expected FAIL while
+  entries are pending — that is the gate working).
+- [ ] `tests/pre-publish.sh` also reports pre-existing environment findings
+  unrelated to this branch (secret-like content in tree, key material in
+  history, local username in paths). Triage separately; do NOT weaken the
+  `verified=pending` gate to silence them.
+- [ ] Full `bats tests/` suite times out on Windows dev hosts; Linux CI is
+  the source of truth (`lint-test` + `uutils-check` jobs).
+- [ ] DoT offer path and netplan apply path in `modules/dns.sh`: covered on
+  child branch `v0.2/dns-dot-netplan`, pending its merge.
+
 ## Manual scenario tracker (TESTING-VM.md)
 
 | Scenario | Status | Log location when done |

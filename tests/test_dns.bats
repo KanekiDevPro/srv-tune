@@ -29,6 +29,8 @@ exit 3
 EOF
   chmod +x "$SRV_TUNE_TMP/stubbin/systemctl"
   export PATH="$SRV_TUNE_TMP/stubbin:$PATH"
+  # Lists are all verified=pending: the test-only override unlocks them.
+  export SRV_TUNE_ALLOW_UNVERIFIED=1
   # shellcheck disable=SC1091
   source "$SRV_TUNE_ROOT/lib/modules.sh"
   module_load dns
@@ -108,4 +110,53 @@ EOF
   run dns_apply "$d"
   [ "$status" -ne 0 ]
   [[ "$output" == *"cloud-init"* ]]
+}
+
+@test "dns auto pool is tier default only" {
+  _setup_dns ok resolv.conf
+  run dns_candidates
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"1.1.1.1"* ]]
+  [[ "$output" == *"8.8.8.8"* ]]
+  [[ "$output" == *"9.9.9.9"* ]]
+  [[ "$output" != *"77.88.8.8"* ]]
+  [[ "$output" != *"178.22.122.100"* ]]
+  [[ "$output" != *"185.51.200.2"* ]]
+}
+
+@test "dns extras join via --dns-extra after typed disclosure" {
+  _setup_dns ok resolv.conf
+  export SRV_TUNE_DNS_EXTRA=shecan
+  export SRV_TUNE_ASSUME_YES=1
+  run dns_candidates
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"178.22.122.100"* ]]
+  d="$SRV_TUNE_STATE_DIR/backups/d5"
+  mkdir -p "$d"
+  export SRV_TUNE_STUB_GETENT_RC=0
+  run dns_apply "$d"
+  unset SRV_TUNE_DNS_EXTRA SRV_TUNE_ASSUME_YES SRV_TUNE_STUB_GETENT_RC
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"RISK extra resolvers"* ]]
+}
+
+@test "dns extras abort without typed disclosure on non-tty" {
+  _setup_dns ok resolv.conf
+  unset SRV_TUNE_ASSUME_YES
+  export SRV_TUNE_DNS_EXTRA=shecan
+  d="$SRV_TUNE_STATE_DIR/backups/d6"
+  mkdir -p "$d"
+  run dns_apply "$d"
+  unset SRV_TUNE_DNS_EXTRA
+  [ "$status" -ne 0 ]
+  grep -q "^nameserver 9.9.9.9" "$SRV_TUNE_SYSROOT/etc/resolv.conf"
+}
+
+@test "unknown --dns-extra ID fails loudly" {
+  _setup_dns ok resolv.conf
+  export SRV_TUNE_DNS_EXTRA=bogus
+  run dns_candidates
+  unset SRV_TUNE_DNS_EXTRA
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unknown --dns-extra ID"* ]]
 }

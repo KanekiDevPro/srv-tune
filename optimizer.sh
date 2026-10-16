@@ -130,6 +130,14 @@ while [[ $# -gt 0 ]]; do
     export SRV_TUNE_MIRROR_URL="${2:-}"
     shift 2
     ;;
+  --dns-extra)
+    if [[ -z "${SRV_TUNE_DNS_EXTRA:-}" ]]; then
+      export SRV_TUNE_DNS_EXTRA="${2:-}"
+    else
+      export SRV_TUNE_DNS_EXTRA="${SRV_TUNE_DNS_EXTRA},${2:-}"
+    fi
+    shift 2
+    ;;
   --config)
     export SRV_TUNE_CUSTOM_PROFILE="$2"
     shift 2
