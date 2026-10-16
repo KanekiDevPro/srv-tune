@@ -93,7 +93,50 @@ profile_file() {
   return 0
 }
 
-# profile_modules <profile> - prints the module list, one per line.
+# registry_require_https <url> - refuse plain http and insecure options.
+registry_require_https() {
+  local url="$1"
+  case "$url" in
+  https://*) return 0 ;;
+  *)
+    printf 'error: refusing non-HTTPS registry URL: %s\n' "$url" >&2
+    return 1
+    ;;
+  esac
+}
+
+# registry_pick_url <listfile> - explicit --mirror wins (validated), else the
+# first curated entry, announced loudly (never silent auto-selection).
+registry_pick_url() {
+  local list="$1" url=""
+  if [[ -n "${SRV_TUNE_MIRROR_URL:-}" ]]; then
+    url="$SRV_TUNE_MIRROR_URL"
+    printf 'mirror: explicit --mirror %s\n' "$url" >&2
+  else
+    url="$(awk '!/^#/ && NF>0 {print $1; exit}' "$list" 2>/dev/null || true)"
+    if [[ -n "$url" ]]; then
+      printf 'mirror: defaulting to first curated entry %s (override with --mirror URL)\n' "$url" >&2
+    fi
+  fi
+  if [[ -z "$url" ]]; then
+    printf 'error: no registry mirror available\n' >&2
+    return 1
+  fi
+  registry_require_https "$url" || return 1
+  printf '%s\n' "$url"
+}
+
+# registry_reachable <url> - bounded fetch check. No curl: note and pass
+# (file checks already ran); unreachable URL fails for rollback.
+registry_reachable() {
+  local url="$1"
+  if ! command -v curl >/dev/null 2>&1; then
+    printf 'note: curl missing, mirror reachability unchecked\n'
+    return 0
+  fi
+  curl -sS -o /dev/null --max-time 10 "$url" 2>/dev/null
+}
+
 profile_modules() {
   local profile="$1" file mods
   file="$(profile_file "$profile")" || return 1
@@ -140,7 +183,7 @@ run_apply() {
   source "$(dirname "${BASH_SOURCE[0]}")/rollback.sh"
   state_init || return 1
   profile_env "$profile" || return 1
-  local ran=0 want_ssh=0 want_fw=0 gated=0
+  local ran=0 want_ssh=0 want_fw=0 want_reg=0 gated=0
   local -a to_run=()
   local m
   # shellcheck disable=SC1091
@@ -185,8 +228,14 @@ run_apply() {
       gated=$((gated + 1))
       continue
     fi
+    if [[ "$m" == "pip_mirror" || "$m" == "npm_mirror" || "$m" == "docker_mirror" ]] && [[ "${SRV_TUNE_WITH_REGISTRY:-0}" != "1" ]]; then
+      printf 'skip: %s (%s)\n' "$m" "$(t need_with_registry)"
+      gated=$((gated + 1))
+      continue
+    fi
     if [[ "$m" == "ssh" ]]; then want_ssh=1; fi
     if [[ "$m" == "firewall" || "$m" == "fail2ban" ]]; then want_fw=1; fi
+    if [[ "$m" == "pip_mirror" || "$m" == "npm_mirror" || "$m" == "docker_mirror" ]]; then want_reg=1; fi
     final_run+=("$m")
   done
   to_run=("${final_run[@]}")
@@ -202,6 +251,13 @@ run_apply() {
   if [[ "$want_fw" == "1" ]]; then
     printf '%s\n' "$(t risk_firewall)"
     if ! ui_type_confirm "$(t type_firewall)" "FIREWALL-YES"; then
+      printf '%s\n' "$(t aborted)"
+      return 1
+    fi
+  fi
+  if [[ "$want_reg" == "1" ]]; then
+    printf '%s\n' "$(t risk_registry)"
+    if ! ui_type_confirm "$(t type_registry)" "REGISTRY-YES"; then
       printf '%s\n' "$(t aborted)"
       return 1
     fi
@@ -272,6 +328,15 @@ module_explain() {
     ;;
   mirror)
     printf 'mirror: handles sources.list AND deb822, benchmarks mirrors live, swaps only the URI, verifies with apt update; pip/npm/docker registry mirrors are opt-in file writes.\n'
+    ;;
+  pip_mirror)
+    printf 'pip_mirror: system pip index-url from mirrors-pip.list (owner/docs per entry); tool-gated + --with-registry opt-in, HTTPS only, NOT signed like apt.\n'
+    ;;
+  npm_mirror)
+    printf 'npm_mirror: system npm registry from mirrors-npm.list (/etc/npmrc); tool-gated + --with-registry opt-in, HTTPS only, NOT signed like apt.\n'
+    ;;
+  docker_mirror)
+    printf 'docker_mirror: registry-mirrors merged into daemon.json preserving all keys (JSON validated, backup first); tool-gated + --with-registry opt-in, HTTPS only, NOT signed like apt; warns restart affects containers, never restarts automatically.\n'
     ;;
   ssh)
     printf 'ssh: ADMIN (key-only after verified key, deferred lockdown on confirm), TUNNEL (restricted user, client artifacts), CUSTOM (validated snippet). Drop-in sorts first; guard + NEW-session confirm; --with-ssh required.\n'

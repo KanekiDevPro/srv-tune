@@ -1,3 +1,8 @@
-# pip mirrors (opt-in, P3).
-https://pypi.org/simple/ pypi-main
-https://mirror-pypi.runflare.com/simple/ runflare-ir
+# Registry mirrors: curated entries only. Format per line:
+#   <https-url> <label> owner=<owner-name> docs=<docs-url> verified=<status>
+# Plain http:// URLs are rejected by the modules (HTTPS only).
+# verified=pending blocks release (see tests/pre-publish.sh); only the
+# maintainer flips it to verified after manual review. Never set it yourself.
+# SPDX-License-Identifier: MIT
+https://pypi.org/simple/ pypi-main owner=Python-Software-Foundation docs=https://pypi.org verified=pending
+https://mirror-pypi.runflare.com/simple/ runflare-ir owner=Runflare docs=https://runflare.com verified=pending

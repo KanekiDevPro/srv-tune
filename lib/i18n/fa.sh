@@ -15,6 +15,9 @@ i18n_get() {
   type_firewall) printf 'برای اعمال تغییرات فایروال بنویسید FIREWALL-YES (غیر آن یعنی انصراف)' ;;
   need_with_ssh) printf 'ماژول ssh به --with-ssh و تایید تایپی نیاز دارد (ریسک‌ها بالا)' ;;
   need_with_firewall) printf 'فایروال/fail2ban به --with-firewall و تایید تایپی نیاز دارد (ریسک‌ها بالا)' ;;
+  need_with_registry) printf 'میرورهای رجیستری به --with-registry و تایید تایپی نیاز دارند (ریسک‌ها بالا)' ;;
+  risk_registry) printf 'ریسک میرور رجیستری: مثل apt امضا ندارند؛ اپراتور میرور می‌تواند بسته دست‌کاری‌شده بدهد. مالک و داک را در data/ ببینید. فقط HTTPS. هرگز در پروفایل پیش‌فرض نیست.' ;;
+  type_registry) printf 'برای اعمال میرور رجیستری بنویسید REGISTRY-YES (غیر آن یعنی انصراف)' ;;
   aborted) printf 'توسط شما لغو شد، چیزی تغییر نکرد' ;;
   *) return 1 ;;
   esac

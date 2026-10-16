@@ -1,3 +1,8 @@
-# npm mirrors (opt-in, P3).
-https://registry.npmjs.org/ npm-main
-https://registry.yarnpkg.com/ yarn-fallback
+# Registry mirrors: curated entries only. Format per line:
+#   <https-url> <label> owner=<owner-name> docs=<docs-url> verified=<status>
+# Plain http:// URLs are rejected by the modules (HTTPS only).
+# verified=pending blocks release (see tests/pre-publish.sh); only the
+# maintainer flips it to verified after manual review. Never set it yourself.
+# SPDX-License-Identifier: MIT
+https://registry.npmjs.org/ npm-main owner=npm-Inc docs=https://docs.npmjs.com/cli/using-npm/config#registry verified=pending
+https://registry.yarnpkg.com/ yarn-fallback owner=Yarn docs=https://yarnpkg.com/configuration/yarnrc#npmRegistryServer verified=pending

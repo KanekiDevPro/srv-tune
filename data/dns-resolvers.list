@@ -1,8 +1,11 @@
 # Public DNS resolvers benchmarked live (latency + failure rate).
-# Format: <ip> <label>
-1.1.1.1 cloudflare
-8.8.8.8 google
-9.9.9.9 quad9
-77.88.8.8 yandex
-178.22.122.100 shecan
-185.51.200.2 electrotm
+# Format per line: <ip> <label> owner=<owner-name> docs=<docs-url> verified=<status>
+# verified=pending blocks release (see tests/pre-publish.sh); only the
+# maintainer flips it to verified after manual review. Never set it yourself.
+# SPDX-License-Identifier: MIT
+1.1.1.1 cloudflare owner=Cloudflare docs=https://1.1.1.1 verified=pending
+8.8.8.8 google owner=Google docs=https://developers.google.com/speed/public-dns verified=pending
+9.9.9.9 quad9 owner=Quad9 docs=https://www.quad9.net verified=pending
+77.88.8.8 yandex owner=Yandex docs=https://dns.yandex.com verified=pending
+178.22.122.100 shecan owner=Shecan docs=https://shecan.ir verified=pending
+185.51.200.2 electrotm owner=ElectroTM docs=https://electrotm.org verified=pending
