@@ -12,21 +12,24 @@ say() {
 }
 
 # 1. Secrets in the working tree (filenames + content).
+# NOTE: this script's own patterns are excluded (':!') so the gate never
+# flags itself; a real secret anywhere else still fails.
 if git ls-files | grep -Ei '(\.env$|\.pem$|\.key$|id_rsa|credentials|secrets\.json)' >/dev/null; then
   say 'FAIL: secret-like filenames tracked'
   fail=1
 fi
-if git grep -n -Ei 'ghp_[A-Za-z0-9]{20,}|github_pat_|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY' -- . >/dev/null; then
+if git grep -n -Ei 'ghp_[A-Za-z0-9]{20,}|github_pat_|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY' -- . ':!tests/pre-publish.sh' >/dev/null; then
   say 'FAIL: secret-like content in tree'
   fail=1
 fi
 
-# 2. Secrets ever in history.
-if git log --all -p -S 'BEGIN RSA PRIVATE KEY' --format='%h' | grep -q .; then
+# 2. Secrets ever in history (same self-exclusion: this file's patterns
+# entered history with it, which is not key material).
+if git log --all -p -S 'BEGIN RSA PRIVATE KEY' --format='%h' -- . ':!tests/pre-publish.sh' | grep -q .; then
   say 'FAIL: private key material in history'
   fail=1
 fi
-if git log --all -p -S 'BEGIN OPENSSH PRIVATE KEY' --format='%h' | grep -q .; then
+if git log --all -p -S 'BEGIN OPENSSH PRIVATE KEY' --format='%h' -- . ':!tests/pre-publish.sh' | grep -q .; then
   say 'FAIL: private key material in history'
   fail=1
 fi
@@ -42,9 +45,9 @@ fi
 # 4. Private names/paths accidentally committed. Test fixtures only ever
 # use TEST-NET addresses (192.0.2.x, 198.51.100.x, 203.0.113.x) and
 # variable-prefixed paths ($TMP/.../home/...), which are excluded.
-if git grep -n -E 'AngelOfDeath|/home/AngelOfDeath' -- . >/dev/null; then
+if git grep -n -E 'AngelOfDeath|/home/AngelOfDeath' -- . ':!tests/pre-publish.sh' >/dev/null; then
   say 'FAIL: private name/path in tree (see above)'
-  git grep -n -E 'AngelOfDeath|/home/AngelOfDeath' -- . || true
+  git grep -n -E 'AngelOfDeath|/home/AngelOfDeath' -- . ':!tests/pre-publish.sh' || true
   fail=1
 fi
 if git grep -n -E '(192\.168\.|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[01])\.)' -- lib modules scanner bench tests optimizer.sh install.sh 2>/dev/null | grep -Ev '192\.0\.2\.|198\.51\.100\.|203\.0\.113\.' >/dev/null; then

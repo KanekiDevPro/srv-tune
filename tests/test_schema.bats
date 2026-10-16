@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# SPDX-License-Identifier: MIT
 # Scan JSON schema: contract file + stdlib-only validator.
 # shellcheck shell=bash
 
