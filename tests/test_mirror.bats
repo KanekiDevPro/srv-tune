@@ -31,6 +31,8 @@ exit $2
 EOF
   chmod +x "$SRV_TUNE_TMP/stubbin/apt-get"
   export PATH="$SRV_TUNE_TMP/stubbin:$PATH"
+  # Lists are all verified=pending: the test-only override unlocks them.
+  export SRV_TUNE_ALLOW_UNVERIFIED=1
   # shellcheck disable=SC1091
   source "$SRV_TUNE_ROOT/lib/modules.sh"
   module_load mirror
