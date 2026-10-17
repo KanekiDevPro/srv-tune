@@ -57,6 +57,7 @@ Usage:
   optimizer health [--json FILE]   (read-only: drift check + pending guards)
   optimizer repair [--dry-run] [--json FILE]  (re-apply drifted modules; root)
   optimizer ssh-close-port <port> (explicit; only after NEW-session proof)
+  optimizer tunnel [status|keys|access|sessions|web] (TUI; no tty: status)
   optimizer --help | --version
 EOF
 }
@@ -69,13 +70,17 @@ JSON_OUT=""
 SCAN_DIFF=""
 ONLY=""
 CMD=""
+TUNNEL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-  scan | recommend | apply | rollback | list-backups | status | benchmark | explain | audit | update | uninstall | confirm | ssh-close-port | health | repair)
+  scan | recommend | apply | rollback | list-backups | status | benchmark | explain | audit | update | uninstall | confirm | ssh-close-port | health | repair | tunnel)
     CMD="$1"
     shift
-    if [[ "$CMD" == "explain" || "$CMD" == "rollback" || "$CMD" == "confirm" || "$CMD" == "ssh-close-port" ]]; then
+    if [[ "$CMD" == "tunnel" ]]; then
+      TUNNEL_ARGS=("$@")
+      set --
+    elif [[ "$CMD" == "explain" || "$CMD" == "rollback" || "$CMD" == "confirm" || "$CMD" == "ssh-close-port" ]]; then
       EXTRA="${1:-}"
       shift || true
       export EXTRA
@@ -282,6 +287,12 @@ ssh-close-port)
   trap - EXIT INT TERM
   lock_release
   exit $rc
+  ;;
+tunnel)
+  # shellcheck disable=SC1091
+  source "$SRV_TUNE_ROOT/lib/tunnel.sh"
+  tunnel_main "${TUNNEL_ARGS[@]}"
+  exit $?
   ;;
 explain)
   # shellcheck disable=SC1091
