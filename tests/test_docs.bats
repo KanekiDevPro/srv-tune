@@ -34,6 +34,8 @@ load bats_helper
   [ "$status" -eq 0 ]
   run grep -q -- 'health' "$SRV_TUNE_ROOT/docs/srv-tune.1"
   [ "$status" -eq 0 ]
+  run grep -q -- 'diff.*BASELINE' "$SRV_TUNE_ROOT/docs/srv-tune.1"
+  [ "$status" -eq 0 ]
   if ! command -v groff >/dev/null 2>&1; then
     skip "groff missing on this host; covered where man tooling exists"
   fi

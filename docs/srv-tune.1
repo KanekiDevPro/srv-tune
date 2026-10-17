@@ -5,6 +5,8 @@ srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-
 .B srv-tune scan
 .RB [ \-\-json
 .IR FILE ]
+.RB [ \-\-diff
+.IR BASELINE.json ]
 .RB [ \-\-lang
 .IR fa | en ]
 .br
@@ -136,6 +138,13 @@ UI language (default en).
 .BR \-\-json " " \fIFILE\fR
 Write the scan report as JSON (scan), or the health check report
 (health).
+.TP
+.BR \-\-diff " " \fIBASELINE.json\fR
+Compare the fresh scan against a scan JSON saved earlier with
+.BR \-\-json :
+print only the changed, added and removed keys plus the score and
+profile change. Reporting only; exits 0 unless the baseline is missing
+or is not a flat scan JSON (then 2).
 .SH SAFETY
 Always run
 .B \-\-dry\-run

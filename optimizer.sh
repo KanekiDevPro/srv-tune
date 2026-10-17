@@ -47,7 +47,7 @@ usage() {
   cat <<EOF
 srv-tune $VERSION — Linux server optimizer
 Usage:
-  optimizer scan [--json FILE] [--lang fa|en]
+  optimizer scan [--json FILE] [--diff BASELINE.json] [--lang fa|en]
   optimizer recommend [--lang fa|en]
   optimizer apply --profile X [--only mod[,mod]] [--dry-run] [--yes] [--lang fa|en]
   optimizer rollback [id] | list-backups | status | explain <module>
@@ -65,6 +65,7 @@ DRY_RUN="${SRV_TUNE_DRY_RUN:-0}"
 ASSUME_YES="${SRV_TUNE_ASSUME_YES:-0}"
 FORCE=0
 JSON_OUT=""
+SCAN_DIFF=""
 ONLY=""
 CMD=""
 
@@ -170,6 +171,14 @@ while [[ $# -gt 0 ]]; do
     JSON_OUT="${2:-}"
     shift 2
     ;;
+  --diff)
+    SCAN_DIFF="${2:-}"
+    if [[ -z "$SCAN_DIFF" ]]; then
+      printf 'error: --diff needs a BASELINE.json file\n' >&2
+      exit 2
+    fi
+    shift 2
+    ;;
   --version | -V)
     printf 'srv-tune %s\n' "$VERSION"
     exit 0
@@ -207,6 +216,7 @@ cmd_locked_scan() {
 case "$CMD" in
 scan)
   export SRV_TUNE_JSON_OUT="$JSON_OUT"
+  export SRV_TUNE_SCAN_DIFF="$SCAN_DIFF"
   cmd_locked_scan
   ;;
 recommend)

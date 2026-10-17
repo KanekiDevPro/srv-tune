@@ -34,7 +34,7 @@ jobs:
           test "$(./bats-core-${BATS_VER}/bin/bats --version)" = "Bats ${BATS_VER}"
           echo "$T/shellcheck-v${SHELLCHECK_VER}:$T" >>"$GITHUB_PATH"
       - name: ShellCheck
-        run: shellcheck -S warning optimizer.sh lib/*.sh lib/i18n/*.sh modules/*.sh scanner/scan.sh scanner/report.sh scanner/collectors/*.sh tests/*.sh tests/*.bash tests/*.bats tests/vm/*.sh
+        run: shellcheck -S warning optimizer.sh lib/*.sh lib/i18n/*.sh modules/*.sh scanner/scan.sh scanner/report.sh scanner/diff.sh scanner/collectors/*.sh tests/*.sh tests/*.bash tests/*.bats tests/vm/*.sh
       - name: shfmt
         run: shfmt -d -i 2 optimizer.sh lib modules scanner tests
       - name: bats

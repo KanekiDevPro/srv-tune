@@ -72,6 +72,15 @@ if [[ -n "$OUT" ]]; then
   printf '%s\n' "$JSON" >"$OUT"
 fi
 
+if [[ -n "${SRV_TUNE_SCAN_DIFF:-}" ]]; then
+  # Compare against a stored scan instead of printing the full report.
+  # shellcheck disable=SC1091
+  source "$ROOT/scanner/diff.sh"
+  rc=0
+  scan_diff_run "$SRV_TUNE_SCAN_DIFF" "$TMP/all.env" "$SCORE" "$PROFILE" || rc=$?
+  exit "$rc"
+fi
+
 if [[ "$RECOMMEND_ONLY" == "1" ]]; then
   printf 'profile: %s\nscore: %s/100\n' "$PROFILE" "$SCORE"
   printf '%s\n' "$RECS"
