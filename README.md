@@ -1,80 +1,137 @@
-# srv-tune — Linux server optimizer
+<div align="center">
 
-SCAN -> RECOMMEND -> APPLY -> VERIFY -> ROLLBACK-IF-BROKEN.
+# 🛠️ srv-tune
 
-<!-- Demo GIF: record `optimizer scan` + `apply --dry-run` on a fresh VM,
+**A Linux server optimizer that shows its work — every change is backed up, verified, and auto-reverted if it breaks.**
+
+[![CI](https://github.com/KanekiDevPro/srv-tune/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/KanekiDevPro/srv-tune/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/KanekiDevPro/srv-tune?sort=semver)](https://github.com/KanekiDevPro/srv-tune/releases)
+[![License: MIT](https://img.shields.io/github/license/KanekiDevPro/srv-tune)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Debian-E95420?logo=ubuntu&logoColor=white)](#)
+[![Shell](https://img.shields.io/badge/shell-bash-4EAA25?logo=gnubash&logoColor=white)](#)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
+
+[English](README.md) · [فارسی](README.fa.md)
+
+</div>
+
+```text
+SCAN → RECOMMEND → APPLY → VERIFY → ROLLBACK-IF-BROKEN
+```
+
+<!-- Demo GIF: record `srv-tune scan` + `apply --dry-run` on a fresh VM,
 save it as docs/demo.gif, then restore the embed here. -->
 
-Read this in Persian: [README.fa.md](README.fa.md).
+## ✨ Why srv-tune
 
-## Scope (honest)
+Most "server optimizer" scripts paste sysctl values from the internet and hope. srv-tune computes values from your machine, prints every diff **with a reason**, backs up every file, verifies the result, and arms a timed auto-revert for the risky parts.
 
-- Core modules = **stable**: `limits`, `network` (sysctl), `kernel`
-  (resources/time), `dns`, `mirror` (apt + `pip_mirror`, `npm_mirror`,
-  `docker_mirror` registry mirrors, tool-gated). Registry mirrors are NOT
-  signed like apt: review owner/docs in `data/` before use.
-- `ssh`, `firewall`, `fail2ban` = **EXPERIMENTAL**: they require explicit
-  flags (`--with-ssh` / `--with-firewall`) plus an interactively typed
-  confirmation, and every change is guarded with timed auto-revert. Do not
-  use them without reading [docs/TESTING-VM.md](docs/TESTING-VM.md).
+- **Read-only first.** `scan` never writes. `apply --dry-run` shows the exact diff before anything changes.
+- **Reversible by design.** Every applied change has a backup and a one-command rollback.
+- **No lockouts.** ssh/firewall changes auto-revert unless confirmed from a **new** session.
+- **No telemetry.** No hidden network calls. Benchmarks print every host they contact.
 
-## Supported OS
+## 🚀 Install
+
+Requirements: `bash`, root for `apply`/`repair`, a systemd-based Ubuntu/Debian. The installer only copies files — it never applies tuning and never touches services.
+
+**One line** (public repo, needs `git`):
+
+```bash
+git clone --depth 1 https://github.com/KanekiDevPro/srv-tune.git && sudo ./srv-tune/install.sh --yes
+```
+
+**Manual** (recommended the first time — read before you run):
+
+```bash
+git clone https://github.com/KanekiDevPro/srv-tune.git
+less srv-tune/install.sh
+sudo ./srv-tune/install.sh --yes --prefix /usr/local
+```
+
+**Pinned release** (verified against the release checksum):
+
+```bash
+# take <sum> from sha256sums.txt in the release assets
+sudo ./srv-tune/install.sh --tag vX.Y.Z --sha256 <sum> --yes
+```
+
+`update` re-verifies checksums; `uninstall` removes program files only — your configs stay until you roll them back.
+
+## ⚡ Quick start
+
+```bash
+srv-tune scan                        # read-only: score + recommended profile
+srv-tune scan --json baseline.json   # keep a baseline for drift checks
+srv-tune health                      # read-only: drift + pending guards
+srv-tune apply --dry-run             # exact diff + why, zero writes
+sudo srv-tune apply                  # apply the recommended profile (Enter accepts)
+sudo srv-tune repair                 # re-apply only the modules that drifted
+srv-tune rollback <id>               # undo one apply (see: list-backups)
+srv-tune benchmark --out before
+srv-tune benchmark --compare before/bench.json after/bench.json --format md
+```
+
+From the source tree, replace `srv-tune` with `./optimizer.sh`. Always start with `--dry-run`. For anything touching ssh or the firewall, keep a proven session open and confirm from a **new** one.
+
+## 🧩 What it tunes
+
+| Module | Status | Summary |
+|---|---|---|
+| `limits` | stable | file descriptors and PAM limits (drop-in only) |
+| `network` | stable | TCP/sysctl tuning computed from your link |
+| `kernel` | stable | swappiness, zram hints, journald cap, time-sync checks |
+| `dns` | stable | DNS benchmark + backend choice (systemd-resolved/resolv.conf), optional DoT |
+| `mirror` | stable | apt mirror switch; opt-in pip/npm/docker registry mirrors |
+| `ssh` | **experimental** | ADMIN hardening / TUNNEL forwarding mode, key gate, guarded port change |
+| `firewall` | **experimental** | nft/ufw rules derived from the scan, guarded |
+| `fail2ban` | **experimental** | jail drop-in with the session source in `ignoreip` (runs with `--with-firewall`) |
+
+Profiles: `generic` · `web` · `database` · `docker` · `vpn-tunnel` · `low-ram` · `custom`.
+
+Registry mirrors (pip/npm/docker) are **unsigned** — unlike apt — so they are reviewed in [`data/`](data/), never enabled by default, and require `--with-registry` plus a typed confirmation.
+
+## 🛡️ Safety model
+
+- Every modified file is backed up first (`/var/lib/srv-tune/backups/<id>/`); `rollback` restores it.
+- Atomic writes: temp → validate (e.g. `sshd -t`) → move. Drop-ins only, sorted first; main configs are never edited.
+- Idempotent: re-running `apply` is safe. `health` reports drift, `repair` fixes only what drifted.
+- ssh/firewall changes arm an independent timed auto-revert; only `srv-tune confirm <id>` from a **new** session cancels it.
+- No telemetry. No hidden network calls.
+
+## 🖥️ Supported systems
 
 | Tier | Systems |
 |---|---|
-| Tier 1 | Ubuntu 24.04, Ubuntu 26.04, Debian 13 |
-| Tier 2 | Ubuntu 22.04, Debian 12 |
-| Best-effort | Ubuntu 20.04 |
+| Tier 1 | Ubuntu 24.04 · Ubuntu 26.04 · Debian 13 |
+| Tier 2 | Ubuntu 22.04 · Debian 12 |
+| Best effort | Ubuntu 20.04 |
 
-Debian 11 is EOL: the scanner warns and apply is blocked. The OS is never
-auto-upgraded.
+Debian 11 is EOL: the scanner warns and `apply` is blocked. The OS is never upgraded automatically.
 
-## Safety model
+## 📚 Documentation
 
-- Every file is backed up before change (manifest in
-  `/var/lib/srv-tune/backups/<id>/`); `rollback [id]` restores.
-- Atomic writes (temp -> validate -> move). Drop-ins only, never main
-  configs (`00-srv-tune.*` sorts first; sshd is first-match-wins).
-- Idempotent re-runs. `--dry-run` shows the exact diff plus the reason
-  (`why`) for every setting; values are computed from the scan, never
-  magic numbers.
-- Every ssh/firewall change arms an independent timed auto-revert that only
-  `srv-tune confirm <id>` from a NEW session cancels.
-- No telemetry. No hidden network calls (benchmarks print every host they
-  contact; `iperf3` runs only with `--iperf-server`).
+- [docs/TESTING-VM.md](docs/TESTING-VM.md) — read before using the experimental modules
+- [docs/DATA-REVIEW.md](docs/DATA-REVIEW.md) — mirror data review rules
+- [docs/VERIFICATION-DEBT.md](docs/VERIFICATION-DEBT.md) — exactly what is and is not verified
+- [docs/srv-tune.1](docs/srv-tune.1) — man page (`man srv-tune` after install)
+- [CHANGELOG.md](CHANGELOG.md) — release history
 
-## Quick start
+## ❓ FAQ
 
-```bash
-./optimizer.sh scan                     # read-only report + JSON + score
-./optimizer.sh scan --diff before.json  # drift vs a scan saved with --json
-./optimizer.sh health                   # read-only: drift check + pending guards
-./optimizer.sh repair                   # re-apply modules that drifted (asks first)
-./optimizer.sh apply                    # recommended profile (Enter accepts)
-./optimizer.sh apply --profile web --dry-run
-./optimizer.sh apply --profile generic --only limits --yes
-./optimizer.sh apply --profile vpn-tunnel --with-ssh   # EXPERIMENTAL path
-./optimizer.sh rollback <id> | ./optimizer.sh list-backups
-./optimizer.sh benchmark --out before && ./optimizer.sh benchmark --compare before/bench.json after/bench.json --format md
-```
+**Does `scan` change anything?** No. It is strictly read-only.
+**What if I lose SSH after a change?** The timed guard reverts automatically unless you confirm from a new session.
+**Is it production-ready?** Core modules are stable; `ssh`/`firewall`/`fail2ban` are experimental — test them on a disposable VM first ([docs/TESTING-VM.md](docs/TESTING-VM.md)).
+**Does it phone home?** No telemetry, no background calls.
+**Persian?** `--lang fa` for output, plus a full [README.fa.md](README.fa.md).
+**Where do backups live?** `/var/lib/srv-tune/backups/` — see `srv-tune list-backups`.
 
-Always run `--dry-run` first. Keep one proven session open for anything
-touching ssh/firewall, and confirm from a NEW session.
+## 🤝 Contributing
 
-## Install
+- [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [CHANGELOG.md](CHANGELOG.md)
+- Bugs and features: use the templates in `.github/ISSUE_TEMPLATE/`.
+- Every PR runs shellcheck, shfmt, bats, a scan matrix (Ubuntu/Debian) and real-systemd integration on GitHub Actions.
 
-```bash
-# Read the script first, then:
-./install.sh --yes --prefix /usr/local
-# Pinned release:
-./install.sh --tag v0.3.0 --sha256 <sum> --yes
-```
+## 📄 License
 
-`update` re-verifies checksums; `uninstall` removes program files only
-(your configs stay until you roll them back).
-
-## Contribute / security / changes
-
-- [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
-  [CHANGELOG.md](CHANGELOG.md), [LICENSE](LICENSE) (MIT).
-- Issues: use the templates in `.github/ISSUE_TEMPLATE/`.
+MIT — see [LICENSE](LICENSE).
