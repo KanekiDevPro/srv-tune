@@ -732,8 +732,46 @@ tunnel_cmd_sessions() {
 }
 
 tunnel_cmd_web() {
-  printf 'error: tunnel web is not implemented yet\n' >&2
-  return 2
+  command -v python3 >/dev/null 2>&1 || {
+    printf 'error: python3 not found; the web panel needs python3 (the TUI works without it)\n' >&2
+    return 2
+  }
+  local port="${SRV_TUNE_TUNNEL_WEB_PORT:-8787}" bind="127.0.0.1"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --port)
+      port="${2:-}"
+      shift 2 || return 2
+      ;;
+    --bind)
+      bind="${2:-}"
+      shift 2 || return 2
+      ;;
+    *)
+      printf 'error: unknown web option: %s\n' "$1" >&2
+      return 2
+      ;;
+    esac
+  done
+  if [[ ! "$port" =~ ^[0-9]+$ ]] || [[ "$port" -lt 1 || "$port" -gt 65535 ]]; then
+    printf 'error: --port must be 1-65535\n' >&2
+    return 2
+  fi
+  local state bin
+  state="$(state_effective_dir)" || return 1
+  mkdir -p "$state/web" || return 1
+  chmod 700 "$state/web" 2>/dev/null || true
+  bin="${SRV_TUNE_BIN:-}"
+  if [[ -z "$bin" ]]; then
+    if command -v srv-tune >/dev/null 2>&1; then
+      bin="srv-tune"
+    else
+      bin="$SRV_TUNE_ROOT/optimizer.sh"
+    fi
+  fi
+  python3 "$SRV_TUNE_ROOT/web/tunnel_web.py" \
+    --port "$port" --bind "$bind" --state-dir "$state" \
+    --bin "$bin" --lang "$(srv_tune_lang)"
 }
 
 tunnel_tui() {

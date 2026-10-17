@@ -83,7 +83,7 @@ DEST="$PREFIX/share/srv-tune"
 BINLINK="$PREFIX/bin/srv-tune"
 mkdir -p "$DEST" "$(dirname "$BINLINK")"
 cp -a "$SRC_DIR/optimizer.sh" "$SRC_DIR/VERSION" "$SRC_DIR/LICENSE" "$DEST/" 2>/dev/null || cp -a "$SRC_DIR/optimizer.sh" "$SRC_DIR/VERSION" "$DEST/"
-for d in lib modules scanner profiles bench data templates completion; do
+for d in lib modules scanner profiles bench data templates completion web; do
   if [[ -d "$SRC_DIR/$d" ]]; then
     rm -rf "${DEST:?}/$d"
     cp -a "$SRC_DIR/$d" "$DEST/"
