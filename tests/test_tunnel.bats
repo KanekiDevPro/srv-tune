@@ -58,6 +58,13 @@ EOF
   [[ "$output" == *"mode: TUNNEL"* ]]
 }
 
+@test "tunnel --help prints usage" {
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"srv-tune tunnel"* ]]
+  [[ "$output" == *"keys"* ]]
+}
+
 _tunnel_keygen() {
   command -v ssh-keygen >/dev/null 2>&1 || skip "ssh-keygen not installed"
   ssh-keygen -q -t ed25519 -N '' -f "$SRV_TUNE_TMP/id_test" >/dev/null

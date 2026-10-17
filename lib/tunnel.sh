@@ -741,8 +741,73 @@ tunnel_tui() {
     tunnel_status_text
     return 0
   fi
-  # Menu lands with the TUI task; status is the safe default until then.
-  tunnel_status_text
+  local choice
+  while true; do
+    printf '\n'
+    tunnel_status_text
+    choice="$(ui_menu "$(t tunnel_title)" refresh refresh keys access sessions quit)"
+    case "$choice" in
+    refresh) continue ;;
+    quit) return 0 ;;
+    keys) tunnel_tui_keys ;;
+    access) tunnel_tui_access ;;
+    sessions)
+      tunnel_sessions_text
+      printf 'press Enter to continue... '
+      IFS= read -r _ || true
+      ;;
+    esac
+  done
+}
+
+tunnel_tui_keys() {
+  local choice line tmp rc
+  while true; do
+    choice="$(ui_menu "$(t tunnel_keys)" list list add remove back)"
+    case "$choice" in
+    back) return 0 ;;
+    list) tunnel_keys_list ;;
+    add)
+      printf 'paste one OpenSSH public key: '
+      IFS= read -r line || return 0
+      tmp="$(mktemp)" || return 1
+      printf '%s\n' "$line" >"$tmp"
+      rc=0
+      SRV_TUNE_ACTOR=tui tunnel_keys_add --file "$tmp" || rc=$?
+      rm -f "$tmp"
+      ;;
+    remove)
+      tunnel_keys_list
+      printf 'fingerprint to remove (SHA256:...): '
+      IFS= read -r line || return 0
+      SRV_TUNE_ACTOR=tui tunnel_keys_remove --fp "$line" || rc=$?
+      ;;
+    esac
+  done
+}
+
+tunnel_tui_access() {
+  local choice po gw
+  tunnel_access_show
+  choice="$(ui_menu "$(t tunnel_access)" back edit back)"
+  [[ "$choice" == "back" ]] && return 0
+  printf '%s [%s]: ' "$(t tunnel_permits)" "$(tunnel_permit_open)"
+  IFS= read -r po || return 0
+  [[ -n "$po" ]] || po="$(tunnel_permit_open)"
+  printf '%s [%s]: ' "$(t tunnel_gateway)" "$(tunnel_gateway_ports)"
+  IFS= read -r gw || return 0
+  [[ -n "$gw" ]] || gw="$(tunnel_gateway_ports)"
+  if [[ "$gw" != "yes" && "$gw" != "no" ]]; then
+    printf 'error: gateway must be yes or no\n'
+    return 0
+  fi
+  printf '%s\n' "$(t tunnel_risk)"
+  ui_type_confirm "$(t tunnel_confirm)" "SSH-YES" || {
+    printf '%s\n' "$(t aborted)"
+    return 0
+  }
+  SRV_TUNE_ACTOR=tui tunnel_access_set --permit-open "$po" --gateway-ports "$gw" --yes
+  return 0
 }
 
 tunnel_main() {

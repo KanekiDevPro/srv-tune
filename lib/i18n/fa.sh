@@ -21,6 +21,21 @@ i18n_get() {
   risk_dns_extra) printf 'ریسک ریزالور اضافه: ریزالور شخص ثالث همه کوئری‌ها را می‌بیند و ممکن است پاسخ دست‌کاری‌شده بدهد (سانسور، هایجک). فقط ریزالوری که به آن اعتماد دارید. اضافه‌ها هرگز خودکار انتخاب نمی‌شوند.' ;;
   type_dns_extra) printf 'برای استفاده از ریزالور اضافه بنویسید DNS-EXTRA-YES (غیر آن یعنی انصراف)' ;;
   aborted) printf 'توسط شما لغو شد، چیزی تغییر نکرد' ;;
+  tunnel_title) printf 'تونل' ;;
+  tunnel_keys) printf 'کلیدها' ;;
+  tunnel_access) printf 'سیاست دسترسی' ;;
+  tunnel_sessions) printf 'نشست‌ها' ;;
+  tunnel_refresh) printf 'به‌روزرسانی' ;;
+  tunnel_quit) printf 'خروج' ;;
+  tunnel_back) printf 'بازگشت' ;;
+  tunnel_add) printf 'افزودن' ;;
+  tunnel_remove) printf 'حذف' ;;
+  tunnel_list) printf 'فهرست' ;;
+  tunnel_edit) printf 'ویرایش' ;;
+  tunnel_permits) printf 'PermitOpen (none یا host:port[,host:port])' ;;
+  tunnel_gateway) printf 'GatewayPorts (yes/no)' ;;
+  tunnel_risk) printf 'ریسک: این کار drop-in تونل sshd را بازنویسی می‌کند؛ مقدار اشتباه دسترسی خودتان را قطع می‌کند. بعد از reload، قبل از انقضای گارد از یک نشست NEW مطمئن شوید.' ;;
+  tunnel_confirm) printf 'برای بازنویسی سیاست دسترسی تونل SSH-YES را تایپ کنید:' ;;
   *) return 1 ;;
   esac
 }
