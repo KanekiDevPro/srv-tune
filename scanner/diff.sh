@@ -32,8 +32,12 @@ scan_diff_run() {
     printf 'error: baseline not found: %s\n' "$base" >&2
     return 2
   fi
+  if [[ ! -r "$base" ]]; then
+    printf 'error: baseline not readable: %s\n' "$base" >&2
+    return 2
+  fi
   local pairs
-  pairs="$(scan_diff_parse_json "$base" || true)"
+  pairs="$(scan_diff_parse_json "$base")"
   while IFS=$'\t' read -r k v; do
     [[ -z "$k" ]] && continue
     old["$k"]="$v"
