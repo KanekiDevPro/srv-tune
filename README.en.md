@@ -68,7 +68,7 @@ touching ssh/firewall, and confirm from a NEW session.
 # Read the script first, then:
 ./install.sh --yes --prefix /usr/local
 # Pinned release:
-./install.sh --tag v0.1.0 --sha256 <sum> --yes
+./install.sh --tag v0.3.0 --sha256 <sum> --yes
 ```
 
 `update` re-verifies checksums; `uninstall` removes program files only

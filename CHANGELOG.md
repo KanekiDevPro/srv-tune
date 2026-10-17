@@ -2,7 +2,7 @@
 
 All notable changes, newest first. Format: Conventional Commits subjects.
 
-## Unreleased
+## v0.3.0 (2026-10-17)
 
 - repair command: replays the health checks, then re-applies ONLY the
   drifted modules with the profile recorded at apply time (new
