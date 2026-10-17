@@ -14,6 +14,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/modules.sh"
 # shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/state.sh"
 # shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/backup.sh"
+# shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/util.sh"
 # shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/i18n.sh"
@@ -195,9 +197,357 @@ tunnel_cmd_status() {
   esac
 }
 
+tunnel_require_root() {
+  if [[ "${SRV_TUNE_TEST:-0}" == "1" ]]; then
+    # TEST-only bypass: CI unit tests run unprivileged against SYSROOT.
+    return 0
+  fi
+  if ! is_root; then
+    printf 'error: run as root (key changes must be owned by the tunnel user)\n' >&2
+    return 2
+  fi
+}
+
+tunnel_home() {
+  if [[ -n "${SRV_TUNE_TUNNEL_HOME:-}" ]]; then
+    printf '%s\n' "$SRV_TUNE_TUNNEL_HOME"
+    return 0
+  fi
+  local u home
+  u="$(tunnel_user)"
+  home="$(getent passwd "$u" 2>/dev/null | cut -d: -f6 || true)"
+  if [[ -z "$home" ]]; then
+    printf 'error: tunnel user %s does not exist (apply the vpn-tunnel profile first)\n' "$u" >&2
+    return 2
+  fi
+  printf '%s\n' "$home"
+}
+
+tunnel_keys_path() {
+  local home
+  home="$(tunnel_home)" || return $?
+  printf '%s/.ssh/authorized_keys\n' "$home"
+}
+
+# tunnel_key_body <line> - base64 body, ignoring options and comment.
+tunnel_key_body() {
+  awk '{for (i=1;i<=NF;i++) if ($i ~ /^(ssh-|ecdsa-|sk-)/) {print $(i+1); exit}}' <<<"${1:-}"
+}
+
+tunnel_key_comment() {
+  awk '{
+    for (i=1;i<=NF;i++) {
+      if ($i ~ /^(ssh-|ecdsa-|sk-)/) {
+        for (j=i+2;j<=NF;j++) printf "%s%s", $j, (j<NF ? " " : "")
+        exit
+      }
+    }
+  }' <<<"${1:-}"
+}
+
+tunnel_key_rewrite_comment() {
+  local line="${1:-}" comment="${2:-}"
+  awk -v c="$comment" '{
+    for (i=1;i<=NF;i++) {
+      if ($i ~ /^(ssh-|ecdsa-|sk-)/) {
+        pre = ""
+        for (j=1;j<i;j++) pre = pre $j " "
+        out = pre $i " " $(i+1)
+        if (c != "") out = out " " c
+        print out
+        exit
+      }
+    }
+  }' <<<"$line"
+}
+
+# tunnel_key_fp <line> - validates the line and prints its SHA256 fingerprint.
+tunnel_key_fp() {
+  local line="${1:-}" tmp fp
+  tmp="$(mktemp)" || return 1
+  chmod 600 "$tmp" 2>/dev/null || true
+  printf '%s\n' "$line" >"$tmp"
+  fp="$(ssh-keygen -lf "$tmp" 2>/dev/null | awk '{print $2; exit}' || true)"
+  rm -f "$tmp"
+  if [[ -z "$fp" ]]; then
+    printf 'error: not a valid OpenSSH public key\n' >&2
+    return 1
+  fi
+  printf '%s\n' "$fp"
+}
+
+tunnel_audit() {
+  local action="${1:-}" fp="${2:-}" comment="${3:-}" result="${4:-ok}"
+  local state log actor src ts
+  state="$(state_effective_dir 2>/dev/null || true)"
+  [[ -n "$state" ]] || return 0
+  log="$state/tunnel-actions.log"
+  actor="${SRV_TUNE_ACTOR:-cli}"
+  src="${SRV_TUNE_SRC:-}"
+  if [[ -z "$src" ]]; then
+    src="$(tty 2>/dev/null || true)"
+    [[ -n "$src" ]] || src="cli"
+  fi
+  ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date)"
+  comment="${comment//$'\r'/ }"
+  comment="${comment//$'\n'/ }"
+  comment="${comment//\"/\'}"
+  if ! printf 'ts=%s actor=%s action=%s fp=%s comment="%s" src=%s result=%s\n' \
+    "$ts" "$actor" "$action" "$fp" "$comment" "$src" "$result" >>"$log" 2>/dev/null; then
+    printf 'warn: could not write audit log %s\n' "$log" >&2
+    return 0
+  fi
+  chmod 600 "$log" 2>/dev/null || true
+  return 0
+}
+
+tunnel_keys_list() {
+  local json=0 keys line fp rest type comment out="" first=1
+  case "${1:-}" in
+  "") ;;
+  --json) json=1 ;;
+  *)
+    printf 'error: unknown keys list option: %s\n' "$1" >&2
+    return 2
+    ;;
+  esac
+  keys="$(tunnel_keys_path)" || return $?
+  if [[ ! -s "$keys" ]]; then
+    [[ "$json" == "1" ]] && printf '{"keys":[]}\n'
+    return 0
+  fi
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    fp="${line#* }"
+    fp="${fp%% *}"
+    rest="${line#* * }"
+    type="${rest##* (}"
+    type="${type%)}"
+    comment="${rest% (*}"
+    if [[ "$json" == "1" ]]; then
+      [[ "$first" == "1" ]] || out+=","
+      first=0
+      out+="{\"fp\":\"$(tunnel_json_escape "$fp")\",\"type\":\"$(tunnel_json_escape "$type")\",\"comment\":\"$(tunnel_json_escape "$comment")\"}"
+    else
+      printf '%s %s %s\n' "$fp" "$type" "$comment"
+    fi
+  done < <(ssh-keygen -lf "$keys" 2>/dev/null || true)
+  [[ "$json" == "1" ]] && printf '{"keys":[%s]}\n' "$out"
+  return 0
+}
+
+tunnel_keys_add() {
+  local file="" comment="" have_comment=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --file)
+      file="${2:-}"
+      shift 2 || return 2
+      ;;
+    --comment)
+      comment="${2:-}"
+      have_comment=1
+      shift 2 || return 2
+      ;;
+    -)
+      file=""
+      shift
+      ;;
+    *)
+      printf 'error: unknown keys add option: %s\n' "$1" >&2
+      return 2
+      ;;
+    esac
+  done
+  tunnel_require_root || return $?
+  local keys input line fp body newline newfp existing
+  local state id bdir dir tmp
+  keys="$(tunnel_keys_path)" || return $?
+  if [[ -n "$file" && "$file" != "-" ]]; then
+    if [[ ! -f "$file" ]]; then
+      printf 'error: key file not found: %s\n' "$file" >&2
+      return 1
+    fi
+    input="$(cat "$file")"
+  else
+    [[ -t 0 ]] && printf 'paste one OpenSSH public key: ' >&2
+    input="$(cat)"
+  fi
+  local -a lines=()
+  while IFS= read -r line; do
+    line="${line%$'\r'}"
+    [[ -z "${line//[[:space:]]/}" ]] && continue
+    lines+=("$line")
+  done <<<"$input"
+  if [[ ${#lines[@]} -eq 0 ]]; then
+    printf 'error: no key provided\n' >&2
+    tunnel_audit key-add "" "$comment" fail
+    return 1
+  fi
+  if [[ ${#lines[@]} -gt 1 ]]; then
+    printf 'error: add one key per call\n' >&2
+    tunnel_audit key-add "" "$comment" fail
+    return 1
+  fi
+  line="${lines[0]}"
+  fp="$(tunnel_key_fp "$line")" || {
+    tunnel_audit key-add "" "$comment" fail
+    return 1
+  }
+  body="$(tunnel_key_body "$line")"
+  if [[ -z "$body" ]]; then
+    printf 'error: not a valid OpenSSH public key\n' >&2
+    tunnel_audit key-add "$fp" "$comment" fail
+    return 1
+  fi
+  if [[ -f "$keys" ]]; then
+    while IFS= read -r existing; do
+      case "$existing" in
+      '' | \#*) continue ;;
+      esac
+      if [[ "$(tunnel_key_body "$existing")" == "$body" ]]; then
+        printf 'error: key already present (%s)\n' "$fp" >&2
+        tunnel_audit key-add "$fp" "$comment" fail
+        return 1
+      fi
+    done <"$keys"
+  fi
+  newline="$line"
+  if [[ "$have_comment" == "1" ]]; then
+    newline="$(tunnel_key_rewrite_comment "$line" "$comment")"
+    newfp="$(tunnel_key_fp "$newline")" || {
+      printf 'error: comment rewrite produced an invalid key\n' >&2
+      tunnel_audit key-add "$fp" "$comment" fail
+      return 1
+    }
+    [[ "$newfp" == "$fp" ]] || {
+      printf 'error: comment rewrite changed the key\n' >&2
+      return 1
+    }
+  fi
+  state="$(state_effective_dir)" || return 1
+  id="$(new_backup_id)"
+  bdir="$state/backups/keys-$id"
+  backup_file "$keys" "$bdir" || {
+    printf 'error: could not back up %s\n' "$keys" >&2
+    return 1
+  }
+  dir="$(dirname "$keys")"
+  mkdir -p "$dir" || return 1
+  chmod 700 "$dir" 2>/dev/null || true
+  tmp="$(mktemp "$dir/.authorized_keys.XXXXXX")" || return 1
+  if [[ -s "$keys" ]]; then
+    cat "$keys" >>"$tmp"
+    # Keep a trailing newline so the new key starts on its own line.
+    [[ -n "$(tail -c 1 "$keys" 2>/dev/null)" ]] && printf '\n' >>"$tmp"
+  fi
+  printf '%s\n' "$newline" >>"$tmp"
+  chmod 600 "$tmp" 2>/dev/null || true
+  if ! mv -f "$tmp" "$keys"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  chmod 600 "$keys" 2>/dev/null || true
+  if is_root && id "$(tunnel_user)" >/dev/null 2>&1; then
+    chown "$(tunnel_user):$(tunnel_user)" "$dir" "$keys" 2>/dev/null ||
+      printf 'warn: chown failed for %s\n' "$keys" >&2
+  fi
+  tunnel_audit key-add "$fp" "$(tunnel_key_comment "$newline")" ok
+  printf 'added %s (%s)\n' "$fp" "$(tunnel_key_comment "$newline")"
+}
+
+tunnel_keys_remove() {
+  local fp="" keys state id bdir dir tmp line lfp found=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --fp)
+      fp="${2:-}"
+      shift 2 || return 2
+      ;;
+    *)
+      printf 'error: unknown keys remove option: %s\n' "$1" >&2
+      return 2
+      ;;
+    esac
+  done
+  if [[ ! "$fp" =~ ^SHA256:[A-Za-z0-9+/=]+$ ]]; then
+    printf 'error: --fp needs a SHA256 fingerprint\n' >&2
+    return 2
+  fi
+  tunnel_require_root || return $?
+  keys="$(tunnel_keys_path)" || return $?
+  if [[ ! -s "$keys" ]]; then
+    printf 'error: no keys for the tunnel user\n' >&2
+    tunnel_audit key-remove "$fp" "" fail
+    return 1
+  fi
+  dir="$(dirname "$keys")"
+  tmp="$(mktemp "$dir/.authorized_keys.XXXXXX")" || return 1
+  while IFS= read -r line; do
+    case "$line" in
+    '' | \#*)
+      printf '%s\n' "$line" >>"$tmp"
+      continue
+      ;;
+    esac
+    lfp="$(tunnel_key_fp "$line" 2>/dev/null || true)"
+    if [[ "$lfp" == "$fp" ]]; then
+      found=1
+      continue
+    fi
+    printf '%s\n' "$line" >>"$tmp"
+  done <"$keys"
+  if [[ "$found" != "1" ]]; then
+    rm -f "$tmp"
+    printf 'error: key not found: %s\n' "$fp" >&2
+    tunnel_audit key-remove "$fp" "" fail
+    return 1
+  fi
+  state="$(state_effective_dir)" || {
+    rm -f "$tmp"
+    return 1
+  }
+  id="$(new_backup_id)"
+  bdir="$state/backups/keys-$id"
+  if ! backup_file "$keys" "$bdir"; then
+    rm -f "$tmp"
+    printf 'error: could not back up %s\n' "$keys" >&2
+    return 1
+  fi
+  chmod 600 "$tmp" 2>/dev/null || true
+  if ! mv -f "$tmp" "$keys"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  chmod 600 "$keys" 2>/dev/null || true
+  if is_root && id "$(tunnel_user)" >/dev/null 2>&1; then
+    chown "$(tunnel_user):$(tunnel_user)" "$dir" "$keys" 2>/dev/null ||
+      printf 'warn: chown failed for %s\n' "$keys" >&2
+  fi
+  tunnel_audit key-remove "$fp" "" ok
+  printf 'removed %s\n' "$fp"
+}
+
 tunnel_cmd_keys() {
-  printf 'error: tunnel keys is not implemented yet\n' >&2
-  return 2
+  local sub="${1:-list}"
+  case "$sub" in
+  list)
+    shift || true
+    tunnel_keys_list "$@"
+    ;;
+  add)
+    shift
+    tunnel_keys_add "$@"
+    ;;
+  remove)
+    shift
+    tunnel_keys_remove "$@"
+    ;;
+  *)
+    printf 'error: unknown keys subcommand: %s\n' "$sub" >&2
+    return 2
+    ;;
+  esac
 }
 
 tunnel_cmd_access() {
