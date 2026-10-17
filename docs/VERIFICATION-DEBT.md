@@ -57,7 +57,11 @@ never by assertion.
 - [ ] `scan --diff` (this branch): CI bats cover flat-JSON baseline parsing,
   changed/added/removed reporting, score/profile delta, bad-baseline exit 2,
   and an end-to-end scan pair. Comparing scans across OS upgrades on a real
-  host remains manual. Pending this branch's merge.
+  host remains manual. Merged in PR #17.
+- [ ] repair command (this branch): CI bats cover nothing-to-repair, dry-run
+  writes nothing, sandboxed re-apply + log record, gated-module refusal,
+  missing/mixed profile records (exit 2), and --json. A real-host repair run
+  after external drift remains manual. Pending this branch's merge.
 
 ## Manual scenario tracker (TESTING-VM.md)
 
