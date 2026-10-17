@@ -4,6 +4,11 @@ All notable changes, newest first. Format: Conventional Commits subjects.
 
 ## Unreleased
 
+- scan --diff BASELINE.json: fresh read-only scan compared against a scan
+  JSON saved earlier with --json; prints only the changed/added/removed
+  keys plus the score and profile delta. Baseline missing or not flat
+  scan JSON: exit 2. --json still writes the fresh scan as the next
+  baseline.
 - health command: read-only drift check that replays the applied modules'
   post-apply checks and reports pending unconfirmed guards; --json report.
 - Data hardening: kind/tier/verified schema for data lists, fail-closed

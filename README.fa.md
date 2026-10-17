@@ -31,6 +31,7 @@ Tier 1: ‏Ubuntu 24.04‏، ‏26.04‏، ‏Debian 13‏. Tier 2: ‏Ubuntu 22
 
 ```bash
 ./optimizer.sh scan --lang fa
+./optimizer.sh scan --diff before.json
 ./optimizer.sh health
 ./optimizer.sh apply --profile generic --dry-run
 ./optimizer.sh apply --profile generic --only limits --yes

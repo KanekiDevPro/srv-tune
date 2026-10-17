@@ -49,12 +49,15 @@ never by assertion.
 - [ ] DoT offer path and netplan apply path in `modules/dns.sh` are covered
   where tests reach them (DoT probe + recommend offer, `--with-dot`
   fail-closed on resolved backend only, netplan backend test — all on this
-  branch); dedicated VM-level DoT/netplan runs remain human-only. Pending
-  this branch's merge.
+  branch); dedicated VM-level DoT/netplan runs remain human-only. Merged
+  and tagged v0.2.0.
 - [ ] health command (this branch): CI bats cover fresh state, verify replay
   (PASS/FAIL), guard reporting, confirmed-guard skip, --json report. A real
-  host run after reboot/upgrade remains human-only. Pending this branch's
-  merge.
+  host run after reboot/upgrade remains human-only. Merged in PR #16.
+- [ ] `scan --diff` (this branch): CI bats cover flat-JSON baseline parsing,
+  changed/added/removed reporting, score/profile delta, bad-baseline exit 2,
+  and an end-to-end scan pair. Comparing scans across OS upgrades on a real
+  host remains manual. Pending this branch's merge.
 
 ## Manual scenario tracker (TESTING-VM.md)
 
