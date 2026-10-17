@@ -2,9 +2,8 @@
 
 SCAN -> RECOMMEND -> APPLY -> VERIFY -> ROLLBACK-IF-BROKEN.
 
-![demo](docs/demo.gif)
-*(Demo GIF placeholder: record `optimizer scan` + `apply --dry-run` on a
-fresh VM and save it as `docs/demo.gif`.)*
+<!-- Demo GIF: record `optimizer scan` + `apply --dry-run` on a fresh VM,
+save it as docs/demo.gif, then restore the embed here. -->
 
 Read this in Persian: [README.fa.md](README.fa.md).
 

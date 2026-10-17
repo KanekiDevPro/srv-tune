@@ -2,8 +2,10 @@
 
 SCAN -> RECOMMEND -> APPLY -> VERIFY -> ROLLBACK-IF-BROKEN.
 
-![demo](docs/demo.gif)
-*(جای GIF نمایشی: خروجی `scan` و `apply --dry-run` را روی VM تمیز ضبط کنید.)*
+<!-- GIF نمایشی: خروجی `scan` و `apply --dry-run` را روی VM تمیز ضبط کنید،
+در docs/demo.gif ذخیره کنید و embed را اینجا برگردانید. -->
+
+نسخه انگلیسی: [README.md](README.md).
 
 ## محدوده صادقانه
 
