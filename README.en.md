@@ -48,6 +48,7 @@ auto-upgraded.
 
 ```bash
 ./optimizer.sh scan                     # read-only report + JSON + score
+./optimizer.sh health                   # read-only: drift check + pending guards
 ./optimizer.sh apply                    # recommended profile (Enter accepts)
 ./optimizer.sh apply --profile web --dry-run
 ./optimizer.sh apply --profile generic --only limits --yes

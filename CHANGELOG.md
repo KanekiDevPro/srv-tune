@@ -4,6 +4,8 @@ All notable changes, newest first. Format: Conventional Commits subjects.
 
 ## Unreleased
 
+- health command: read-only drift check that replays the applied modules'
+  post-apply checks and reports pending unconfirmed guards; --json report.
 - Data hardening: kind/tier/verified schema for data lists, fail-closed
   verified-only gate, DNS default/optional tiers with --dns-extra disclosure,
   official-default origins never auto-selected, DATA-REVIEW checklist.
