@@ -54,6 +54,7 @@ Usage:
   optimizer benchmark [--out DIR] [--iperf-server H] [--install-deps]
   optimizer benchmark --compare BEFORE AFTER [--format md|json|html]
   optimizer audit | update | uninstall | confirm <guard-id> [--force]
+  optimizer health [--json FILE]   (read-only: drift check + pending guards)
   optimizer ssh-close-port <port> (explicit; only after NEW-session proof)
   optimizer --help | --version
 EOF
@@ -69,7 +70,7 @@ CMD=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-  scan | recommend | apply | rollback | list-backups | status | benchmark | explain | audit | update | uninstall | confirm | ssh-close-port)
+  scan | recommend | apply | rollback | list-backups | status | benchmark | explain | audit | update | uninstall | confirm | ssh-close-port | health)
     CMD="$1"
     shift
     if [[ "$CMD" == "explain" || "$CMD" == "rollback" || "$CMD" == "confirm" || "$CMD" == "ssh-close-port" ]]; then
@@ -275,6 +276,15 @@ explain)
   # shellcheck disable=SC1091
   source "$SRV_TUNE_ROOT/lib/modules.sh"
   module_explain "${EXTRA:-}"
+  ;;
+health)
+  # Read-only drift check: replays applied modules' verify + guard status.
+  # shellcheck disable=SC1091
+  source "$SRV_TUNE_ROOT/lib/health.sh"
+  export SRV_TUNE_JSON_OUT="$JSON_OUT"
+  rc=0
+  health_run || rc=$?
+  exit "$rc"
   ;;
 benchmark)
   if [[ -n "${BENCH_CMP_A:-}" ]]; then

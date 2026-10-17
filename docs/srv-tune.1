@@ -1,4 +1,4 @@
-.TH SRV-TUNE 1 "2026-10-16" "srv-tune 0.1.0" "System administration"
+.TH SRV-TUNE 1 "2026-10-17" "srv-tune 0.1.0" "System administration"
 .SH NAME
 srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-BROKEN
 .SH SYNOPSIS
@@ -50,6 +50,10 @@ srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-
 .B uninstall
 |
 .BI confirm " guard-id"
+.br
+.B srv-tune health
+.RB [ \-\-json
+.IR FILE ]
 .SH DESCRIPTION
 srv-tune tunes a Linux server in five auditable stages: read-only
 .BR scan ,
@@ -72,6 +76,13 @@ Registry mirrors are NOT signed like apt. DNS tier-optional resolvers see
 every query. Nothing from
 .I data/
 is used until a human verifies it (see DATA-REVIEW in the source tree).
+.PP
+.B health
+is read-only: it replays the post-apply checks of every module recorded in
+the applied-changes log, reports unconfirmed guards whose timed
+auto-revert is still pending, and exits 1 on any failed check. Run it as
+root for full coverage (module checks are skipped otherwise). It performs
+no writes itself; the mirror check may refresh apt metadata.
 .SH OPTIONS
 .TP
 .BR \-\-profile " " \fINAME\fR
@@ -123,7 +134,8 @@ the third-party disclosure and needs typed DNS-EXTRA-YES without
 UI language (default en).
 .TP
 .BR \-\-json " " \fIFILE\fR
-Write the scan report as JSON (scan only).
+Write the scan report as JSON (scan), or the health check report
+(health).
 .SH SAFETY
 Always run
 .B \-\-dry\-run

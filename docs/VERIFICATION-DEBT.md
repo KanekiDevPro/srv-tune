@@ -51,6 +51,10 @@ never by assertion.
   fail-closed on resolved backend only, netplan backend test — all on this
   branch); dedicated VM-level DoT/netplan runs remain human-only. Pending
   this branch's merge.
+- [ ] health command (this branch): CI bats cover fresh state, verify replay
+  (PASS/FAIL), guard reporting, confirmed-guard skip, --json report. A real
+  host run after reboot/upgrade remains human-only. Pending this branch's
+  merge.
 
 ## Manual scenario tracker (TESTING-VM.md)
 
