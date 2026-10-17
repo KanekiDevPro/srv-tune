@@ -138,3 +138,39 @@ _chmod_effective() {
   [[ "$output" == *'"fp":"SHA256:'* ]]
   [[ "$output" == *router* ]]
 }
+
+_tunnel_ss_stub() {
+  local stub="$SRV_TUNE_TMP/ss-stub"
+  cat >"$stub" <<'EOF'
+#!/usr/bin/env bash
+cat <<'ROWS'
+State Recv-Q Send-Q Local Address:Port Peer Address:Port Process
+ESTAB 0 0 10.0.0.1:22 198.51.100.7:51000 users:(("sshd",pid=4242,fd=3))
+ESTAB 0 0 10.0.0.1:80 203.0.113.9:52000 users:(("nginx",pid=99,fd=3))
+ROWS
+EOF
+  chmod +x "$stub"
+  export SRV_TUNE_SS_BIN="$stub"
+}
+
+@test "tunnel sessions lists only ssh connections" {
+  _tunnel_setup
+  _tunnel_ss_stub
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel sessions
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"198.51.100.7:51000 pid=4242"* ]]
+  [[ "$output" != *"nginx"* ]]
+  [[ "$output" != *"203.0.113.9"* ]]
+}
+
+@test "tunnel sessions --json is machine readable and status counts them" {
+  _tunnel_setup
+  _tunnel_ss_stub
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel sessions --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"peer":"198.51.100.7:51000"'* ]]
+  [[ "$output" == *'"pid":"4242"'* ]]
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"sessions: 1"* ]]
+}

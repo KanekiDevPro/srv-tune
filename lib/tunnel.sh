@@ -119,26 +119,50 @@ tunnel_ip_forward() {
   fi
 }
 
-tunnel_sessions_available() {
-  [[ -n "${SRV_TUNE_SS_BIN:-}" ]] || command -v ss >/dev/null 2>&1
-}
-
-# tunnel_sessions_json - real parsing lands with the sessions task.
-tunnel_sessions_json() {
-  printf '{"sessions":[]}\n'
+# tunnel_sessions_parse - ESTAB rows on the ssh port: peer<TAB>pid per line.
+tunnel_sessions_parse() {
+  local bin="${SRV_TUNE_SS_BIN:-ss}" port
+  if [[ -z "${SRV_TUNE_SS_BIN:-}" ]] && ! command -v ss >/dev/null 2>&1; then
+    printf 'error: ss not found (iproute2); sessions unavailable\n' >&2
+    return 2
+  fi
+  port="$(tunnel_port)"
+  "$bin" -tnp 2>/dev/null | awk -v p=":$port" '
+    NR == 1 { next }
+    $1 == "ESTAB" && substr($4, length($4) - length(p) + 1) == p {
+      pid = ""
+      if (match($0, /pid=[0-9]+/)) pid = substr($0, RSTART + 4, RLENGTH - 4)
+      printf "%s\t%s\n", $5, pid
+    }'
 }
 
 tunnel_sessions_text() {
+  local rows
+  rows="$(tunnel_sessions_parse)" || return $?
+  [[ -z "$rows" ]] && return 0
+  printf '%s\n' "$rows" | awk -F'\t' '{if ($2 == "") print $1; else printf "%s pid=%s\n", $1, $2}'
+}
+
+tunnel_sessions_json() {
+  local rows out="" first=1 peer pid
+  rows="$(tunnel_sessions_parse)" || return $?
+  while IFS=$'\t' read -r peer pid; do
+    [[ -z "$peer" ]] && continue
+    [[ "$first" == "1" ]] || out+=","
+    first=0
+    out+="{\"peer\":\"$(tunnel_json_escape "$peer")\",\"pid\":\"$pid\"}"
+  done <<<"$rows"
+  printf '{"sessions":[%s]}\n' "$out"
   return 0
 }
 
 tunnel_sessions_count() {
-  local n="0"
-  if ! tunnel_sessions_available; then
+  local out n="0"
+  out="$(tunnel_sessions_json 2>/dev/null)" || {
     printf 'unavailable\n'
     return 0
-  fi
-  n="$(tunnel_sessions_json | grep -o '"peer"' | wc -l || true)"
+  }
+  n="$(printf '%s' "$out" | grep -o '"peer"' | wc -l || true)"
   printf '%d\n' "$((n + 0))"
 }
 
