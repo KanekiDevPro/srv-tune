@@ -74,6 +74,33 @@ srv-tune benchmark --compare before/bench.json after/bench.json --format md
 
 از داخل سورس، به‌جای `srv-tune` از `./optimizer.sh` استفاده کنید. همیشه با `--dry-run` شروع کنید. برای ssh/فایروال یک نشست سالم باز نگه دارید و از نشست **جدید** تایید کنید.
 
+## 🔐 رابط تونل
+
+برای سرور فوروارد SSH (پروفایل `vpn-tunnel`) همه‌چیز در یک جا است:
+
+```bash
+sudo srv-tune tunnel          # منوی تعاملی: وضعیت، کلیدها، دسترسی، نشست‌ها
+sudo srv-tune tunnel status   # بدون tty: به‌جای منو وضعیت TUNNEL را چاپ می‌کند
+sudo srv-tune tunnel keys add < id_ed25519.pub
+sudo srv-tune tunnel keys remove --fp SHA256:...
+sudo srv-tune tunnel sessions
+```
+
+`access set --permit-open host:port --gateway-ports no` فقط خط‌های سیاست را
+بازنویسی می‌کند و از همان گارد عبور می‌کند: از نشست **جدید** تایید کنید.
+
+پنل وب اختیاری است و فقط روی loopback گوش می‌دهد:
+
+```bash
+sudo srv-tune tunnel web      # http://127.0.0.1:8787 + URL توکن یک‌بارمصرف
+ssh -L 8787:127.0.0.1:8787 user@server   # از ورک‌استیشن خودتان
+```
+
+پنل وضعیت/نشست‌ها/کلیدها را نشان می‌دهد و می‌تواند کلید اضافه یا حذف کند؛
+هرگز سیاست sshd را تغییر نمی‌دهد. با فایل توکن با مجوز 600 احراز هویت
+می‌کند، برای تغییرات POST+CSRF می‌خواهد و ورودهای ناموفق را محدود می‌کند.
+کلیدها بکاپ می‌شوند و هر تغییر در audit log ثبت می‌شود.
+
 ## 🧩 چه چیزهایی را تنظیم می‌کند
 
 | ماژول | وضعیت | خلاصه |

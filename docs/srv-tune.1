@@ -61,6 +61,8 @@ srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-
 .RB [ \-\-dry\-run ]
 .RB [ \-\-json
 .IR FILE ]
+.br
+.B srv-tune tunnel [status|keys|access|sessions|web]
 .SH DESCRIPTION
 srv-tune tunes a Linux server in five auditable stages: read-only
 .BR scan ,
@@ -164,6 +166,76 @@ Compare the fresh scan against a scan JSON saved earlier with
 print only the changed, added and removed keys plus the score and
 profile change. Reporting only; exits 0 unless the baseline is missing
 or is not a flat scan JSON (then 2).
+.SH TUNNEL UI
+The
+.B tunnel
+command manages an SSH forwarding-only server: an interactive menu
+.RB ( "srv-tune tunnel" )
+plus scriptable subcommands
+.BR status ,
+.BR sessions ,
+.BR "keys list" ,
+.BR "keys add" ,
+.BR "keys remove" ,
+.BR "access show" ,
+.BR "access set" ,
+and
+.BR web .
+.PP
+.B srv-tune tunnel keys add
+reads one public key from stdin
+.RB ( "srv-tune tunnel keys add < id_ed25519.pub" );
+.BR \-\-file
+reads a path instead and
+.B \-\-comment
+labels the key. Keys are validated with
+.BR ssh-keygen (1),
+deduplicated by key body, backed up under
+.IR /var/lib/srv-tune/backups/ ,
+and every add and remove is recorded in the tunnel audit log.
+.B srv-tune tunnel keys remove \-\-fp
+.I SHA256:...
+removes one key by fingerprint.
+.PP
+.B srv-tune tunnel access set \-\-permit-open
+.I host:port[,host:port]
+.B \-\-gateway\-ports
+.I yes|no
+rewrites only the PermitOpen and GatewayPorts lines of the applied TUNNEL
+drop-in and preserves the current port and tunnel user. It goes through
+the same guarded apply as the ssh module: confirm the guard from a NEW
+session with
+.B srv-tune confirm
+.IR id .
+.PP
+.B srv-tune tunnel web
+.RB [ \-\-port
+.IR N ]
+.RB [ \-\-bind
+.IR ADDR ]
+runs a localhost-only HTTP panel (default 127.0.0.1:8787; the
+.B SRV_TUNE_TUNNEL_WEB_PORT
+environment variable is honored). It prints a one-shot login URL; after
+that first visit the panel authenticates with an HttpOnly cookie. Reach
+it from a workstation with
+.BR "ssh \-L 8787:127.0.0.1:8787 user@host" .
+The panel shows status, sessions and keys and can add or remove keys; it
+never edits sshd policy. The token is stored in
+.I /var/lib/srv-tune/web/token
+with mode 600, failed logins are rate limited, and python3 is required
+for the panel only.
+.PP
+For
+.BR status ,
+.B sessions
+and
+.BR "keys list" ,
+the bare
+.B \-\-json
+word after the subcommand prints machine-readable JSON to stdout.
+That is not the global
+.BR \-\-json " " FILE
+flag, which must come before the command.
 .SH SAFETY
 Always run
 .B \-\-dry\-run

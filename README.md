@@ -74,6 +74,34 @@ srv-tune benchmark --compare before/bench.json after/bench.json --format md
 
 From the source tree, replace `srv-tune` with `./optimizer.sh`. Always start with `--dry-run`. For anything touching ssh or the firewall, keep a proven session open and confirm from a **new** one.
 
+## 🔐 Tunnel UI
+
+For an SSH forwarding server (`vpn-tunnel` profile) everything is in one place:
+
+```bash
+sudo srv-tune tunnel          # interactive menu: status, keys, access, sessions
+sudo srv-tune tunnel status   # no tty: prints the TUNNEL status instead
+sudo srv-tune tunnel keys add < id_ed25519.pub
+sudo srv-tune tunnel keys remove --fp SHA256:...
+sudo srv-tune tunnel sessions
+```
+
+`access set --permit-open host:port --gateway-ports no` rewrites only the
+policy lines and runs through the usual guard: confirm it from a **new**
+session.
+
+The web panel is optional and loopback-only:
+
+```bash
+sudo srv-tune tunnel web      # http://127.0.0.1:8787 + one-shot token URL
+ssh -L 8787:127.0.0.1:8787 user@server   # from your workstation
+```
+
+The panel shows status/sessions/keys and can add or remove keys; it never
+edits sshd policy. It authenticates with a 600-mode token file, requires
+POST+CSRF for changes, and rate-limits failed logins. Keys are backed up
+and every change is audit-logged.
+
 ## 🧩 What it tunes
 
 | Module | Status | Summary |
