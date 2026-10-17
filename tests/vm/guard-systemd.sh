@@ -65,7 +65,12 @@ t1="$(mkcase g1)"
 SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export SRV_TUNE_STATE_DIR='$SRV_TUNE_STATE_DIR'; guard_start g1 12 >/dev/null; sleep 20" &
 parent=$!
 wait_for 10 test -f "$SRV_TUNE_STATE_DIR/guard/origin-g1.tty"
-systemctl list-timers 'srv-tune-guard-g1.timer' | grep -q 'srv-tune-guard-g1' || {
+timer_scheduled() {
+  systemctl list-timers 'srv-tune-guard-g1.timer' 2>/dev/null | grep -q 'srv-tune-guard-g1'
+}
+# guard_start writes origin-g1.tty before systemd-run returns; poll so this
+# probe cannot outrun scheduling on a loaded runner (flake seen in CI).
+wait_for 10 timer_scheduled || {
   printf 'FAIL: transient timer not scheduled\n' >&2
   printf '--- systemd-run error (if any) ---\n' >&2
   cat "$SRV_TUNE_STATE_DIR/guard/systemd-run.err" >&2 || true
