@@ -174,3 +174,61 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"sessions: 1"* ]]
 }
+
+_tunnel_access_stubs() {
+  local dir="$SRV_TUNE_TMP/stubbin"
+  mkdir -p "$dir"
+  printf '#!/bin/sh\nexit 0\n' >"$dir/sshd"
+  # ssh_wait_port greps ":22 " from ss; emit one listening row.
+  printf '#!/bin/sh\nprintf "LISTEN 0 128 0.0.0.0:22 0.0.0.0:*\\n"\n' >"$dir/ss"
+  chmod +x "$dir/sshd" "$dir/ss"
+  export SRV_TUNE_SSHD_BIN="$dir/sshd"
+  export SRV_TUNE_SS_BIN="$dir/ss"
+  export SRV_TUNE_NO_GUARD=1
+}
+
+@test "tunnel access set rewrites policy and preserves port and user" {
+  _tunnel_setup
+  _tunnel_access_stubs
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel access set \
+    --permit-open db.internal:5432,git.internal:22 --gateway-ports yes --yes
+  [ "$status" -eq 0 ]
+  local f="$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  run grep -q 'PermitOpen db.internal:5432,git.internal:22' "$f"
+  [ "$status" -eq 0 ]
+  run grep -q '^GatewayPorts yes' "$f"
+  [ "$status" -eq 0 ]
+  run grep -q '^Port 22' "$f"
+  [ "$status" -eq 0 ]
+  run grep -q '^Match User tunnel' "$f"
+  [ "$status" -eq 0 ]
+  ls "$SRV_TUNE_STATE_DIR"/backups/*/manifest.tsv >/dev/null
+}
+
+@test "tunnel access set refuses when no tunnel drop-in is applied" {
+  export SRV_TUNE_SYSROOT="$SRV_TUNE_TMP/root"
+  export SRV_TUNE_TEST=1
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel access set \
+    --permit-open none --gateway-ports no --yes
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"not a tunnel server"* ]]
+}
+
+@test "tunnel access set rejects a malformed permit-open" {
+  _tunnel_setup
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel access set \
+    --permit-open 'bad target' --gateway-ports no --yes
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"permit-open"* ]]
+}
+
+@test "tunnel access show reports the applied policy" {
+  _tunnel_setup
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel access show
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"permit_open: db.internal:5432"* ]]
+  [[ "$output" == *"gateway_ports: no"* ]]
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel access show --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"permit_tunnel":false'* ]]
+}

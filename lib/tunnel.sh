@@ -18,6 +18,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/backup.sh"
 # shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/util.sh"
 # shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lock.sh"
+# shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/i18n.sh"
 # shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/ui.sh"
@@ -575,8 +577,147 @@ tunnel_cmd_keys() {
 }
 
 tunnel_cmd_access() {
-  printf 'error: tunnel access is not implemented yet\n' >&2
-  return 2
+  local sub="${1:-show}"
+  case "$sub" in
+  show)
+    shift || true
+    tunnel_access_show "$@"
+    ;;
+  set)
+    shift
+    tunnel_access_set "$@"
+    ;;
+  *)
+    printf 'error: unknown access subcommand: %s\n' "$sub" >&2
+    return 2
+    ;;
+  esac
+}
+
+tunnel_access_show() {
+  local mode permit_open gw pt
+  mode="$(tunnel_mode)"
+  permit_open="$(tunnel_permit_open)"
+  gw="$(tunnel_gateway_ports)"
+  pt="$(tunnel_permit_tunnel)"
+  case "${1:-}" in
+  "")
+    printf 'mode: %s\n' "$mode"
+    printf 'permit_open: %s\n' "$permit_open"
+    printf 'gateway_ports: %s\n' "$gw"
+    printf 'permit_tunnel: %s\n' "$pt"
+    ;;
+  --json)
+    printf '{"mode":"%s","permit_open":"%s","gateway_ports":%s,"permit_tunnel":%s}\n' \
+      "$mode" "$(tunnel_json_escape "$permit_open")" \
+      "$([[ "$gw" == "yes" ]] && printf true || printf false)" \
+      "$([[ "$pt" == "yes" ]] && printf true || printf false)"
+    ;;
+  *)
+    printf 'error: unknown access show option: %s\n' "$1" >&2
+    return 2
+    ;;
+  esac
+}
+
+tunnel_validate_permit_open() {
+  local v="${1:-}" entry host port
+  [[ "$v" == "none" ]] && return 0
+  if [[ -z "$v" ]]; then
+    printf 'error: --permit-open must be none or host:port[,host:port]\n' >&2
+    return 1
+  fi
+  local IFS=','
+  for entry in $v; do
+    host="${entry%%:*}"
+    port="${entry##*:}"
+    if [[ "$entry" != *:* ]] ||
+      [[ ! "$host" =~ ^[A-Za-z0-9.*_-]+$ ]] ||
+      [[ ! "$port" =~ ^[0-9]+$ ]] ||
+      [[ "$port" -lt 1 || "$port" -gt 65535 ]]; then
+      printf 'error: bad --permit-open entry: %s\n' "$entry" >&2
+      return 1
+    fi
+  done
+  return 0
+}
+
+tunnel_access_set() {
+  local permit_open="" gateway="" have_po=0 have_gw=0 yes=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --permit-open)
+      permit_open="${2:-}"
+      have_po=1
+      shift 2 || return 2
+      ;;
+    --gateway-ports)
+      gateway="${2:-}"
+      have_gw=1
+      shift 2 || return 2
+      ;;
+    --yes)
+      yes=1
+      shift
+      ;;
+    *)
+      printf 'error: unknown access set option: %s\n' "$1" >&2
+      return 2
+      ;;
+    esac
+  done
+  if [[ "$have_po" != "1" || "$have_gw" != "1" ]]; then
+    printf 'error: access set needs --permit-open and --gateway-ports\n' >&2
+    return 2
+  fi
+  case "$gateway" in
+  yes | no) ;;
+  *)
+    printf 'error: --gateway-ports must be yes or no\n' >&2
+    return 2
+    ;;
+  esac
+  tunnel_validate_permit_open "$permit_open" || return 2
+  tunnel_require_root || return $?
+  if [[ "$(tunnel_mode)" != "TUNNEL" ]]; then
+    printf 'error: not a tunnel server (apply --profile vpn-tunnel --with-ssh first)\n' >&2
+    return 2
+  fi
+  # Preserve the applied port, user, and tun forwarding: losing them here
+  # would silently change the server's network exposure.
+  local port user tun=0
+  port="$(tunnel_port)"
+  user="$(tunnel_user)"
+  [[ "$(tunnel_permit_tunnel)" == "yes" ]] && tun=1
+  printf 'risk: this rewrites the TUNNEL sshd drop-in; bad values can cut your own access\n'
+  printf 'risk: after the reload, prove a NEW session before the guard expires\n'
+  if [[ "$yes" != "1" ]]; then
+    ui_type_confirm 'Type SSH-YES to rewrite the tunnel access policy: ' "SSH-YES" || {
+      printf 'aborted\n'
+      return 1
+    }
+  fi
+  # Our own typed confirm replaces the module's second gate for this one
+  # explicit edit; the guard below is untouched.
+  export SRV_TUNE_ASSUME_YES=1
+  export SRV_TUNE_SSH_MODE=TUNNEL
+  export SRV_TUNE_TUNNEL_USER="$user"
+  export SRV_TUNE_SSH_PORT="$port"
+  export SRV_TUNE_PERMIT_OPEN="$permit_open"
+  export SRV_TUNE_TUNNEL_GATEWAY=0
+  [[ "$gateway" == "yes" ]] && export SRV_TUNE_TUNNEL_GATEWAY=1
+  if [[ "$tun" == "1" ]]; then
+    export SRV_TUNE_TUNNEL_MODE=tun
+  else
+    unset SRV_TUNE_TUNNEL_MODE
+  fi
+  export SRV_TUNE_WITH_SSH=1
+  export SRV_TUNE_PROFILE=vpn-tunnel
+  lock_acquire || return 1
+  local rc=0
+  run_apply vpn-tunnel ssh || rc=$?
+  lock_release
+  return "$rc"
 }
 
 tunnel_cmd_sessions() {
