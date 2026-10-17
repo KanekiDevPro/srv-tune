@@ -28,6 +28,18 @@ jobs:
             exit 1
           fi
           printf 'mirror data: no pending entries\n'
+      - name: Version file matches the tag
+        # First bumped for v0.3.0; keep VERSION in lockstep with tags.
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          want="${GITHUB_REF_NAME#v}"
+          have="$(cat VERSION)"
+          if [[ "$have" != "$want" ]]; then
+            printf 'FAIL: VERSION file says %s but the tag is %s\n' "$have" "$GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          printf 'version: VERSION matches tag %s\n' "$GITHUB_REF_NAME"
       - name: Build tarball and checksums
         run: |
           set -euo pipefail

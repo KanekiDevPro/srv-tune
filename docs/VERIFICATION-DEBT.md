@@ -22,7 +22,7 @@ This file is updated in every PR.
 | backup/rollback/guard/dry-run/preflight/health | CI | bats incl. signals, partial failure, TEST-only fallback; integration: real systemd-run timers (kill -9, cancel, same-session reject) | guard expiry timing on a loaded VM (cosmetic) |
 | benchmark/installer/update | CI | bats incl. checksum gates (file:// paths run on Linux; skipped where host curl lacks it) | real release download on version bump |
 | profiles/UX/i18n | CI (mostly) | bats: mapping, gating, typed phrases, i18n parity, custom config | whiptail interactive path (runners lack whiptail: plain path only) — unit-tested only |
-| release workflow | UNTESTED | none (no tag ever pushed; tagging is maintainer-only) | first release is a manual, watched procedure |
+| release workflow | CI (draft only) | v0.2.0: pending-data gate, tarball + sha256, draft creation all ran on a real tag; v0.3.0 adds the VERSION==tag gate | publish + pinned install from the release assets is manual |
 | uutils coreutils / sudo-rs (26.04) | CI | uutils-check job: full bats + scanner smoke on ubuntu:26.04; flavors recorded | none outstanding |
 
 ## Round 2 data hardening (open)
@@ -37,9 +37,9 @@ never by assertion.
 - [ ] 185.51.200.2 ownership conflict: RESOLVED 2026-10-16 by maintainer
   decision — disputed entry deleted outright instead of attributed
   (was `electrotm`, third-party README said Shecan secondary).
-- [ ] `release.yml` pending-gate never fired on a real tag push (runs only on
-  `v*.*.*`). Next release attempt will exercise it (expected FAIL while
-  entries are pending — that is the gate working).
+- [ ] `release.yml` gates: v0.2.0 proved the pending-data gate on a real
+  tag push (`mirror data: no pending entries`). The new VERSION==tag gate
+  is first exercised by the v0.3.0 tag.
 - [ ] `tests/pre-publish.sh` also reports pre-existing environment findings
   unrelated to this branch (secret-like content in tree, key material in
   history, local username in paths). Triage separately; do NOT weaken the
