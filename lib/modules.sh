@@ -340,7 +340,7 @@ run_apply() {
       fi
       return 1
     fi
-    state_log_applied "module=$m backup=$id"
+    state_log_applied "module=$m backup=$id profile=$profile"
     printf 'ok: %s applied (backup %s)\n' "$m" "$id"
     ran=$((ran + 1))
   done

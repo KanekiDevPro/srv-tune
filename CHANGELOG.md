@@ -4,6 +4,12 @@ All notable changes, newest first. Format: Conventional Commits subjects.
 
 ## Unreleased
 
+- repair command: replays the health checks, then re-applies ONLY the
+  drifted modules with the profile recorded at apply time (new
+  profile=<name> field in applied-changes.log); same rails as apply
+  (backup, verify, auto-rollback). Gated modules keep their flags; --dry-run
+  prints the diffs and writes nothing; log lines without a profile record
+  are refused with guidance (exit 2).
 - scan --diff BASELINE.json: fresh read-only scan compared against a scan
   JSON saved earlier with --json; prints only the changed/added/removed
   keys plus the score and profile delta. Baseline missing or not flat

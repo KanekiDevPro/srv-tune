@@ -56,6 +56,11 @@ srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-
 .B srv-tune health
 .RB [ \-\-json
 .IR FILE ]
+.br
+.B srv-tune repair
+.RB [ \-\-dry\-run ]
+.RB [ \-\-json
+.IR FILE ]
 .SH DESCRIPTION
 srv-tune tunes a Linux server in five auditable stages: read-only
 .BR scan ,
@@ -85,6 +90,20 @@ the applied-changes log, reports unconfirmed guards whose timed
 auto-revert is still pending, and exits 1 on any failed check. Run it as
 root for full coverage (module checks are skipped otherwise). It performs
 no writes itself; the mirror check may refresh apt metadata.
+.PP
+.B repair
+first replays the same post-apply checks, then re-applies only the drifted
+modules, using the profile recorded at apply time, with the apply rails:
+fresh backup, verify, automatic rollback on failure. Requires root.
+Modules still gated by an opt-in flag (see
+.BR \-\-with\-ssh ,
+.BR \-\-with\-firewall ,
+.BR \-\-with\-registry )
+are reported, never silently applied. With
+.B \-\-dry\-run
+it prints the exact diffs and writes nothing. Exit: 0 clean or repaired; 1
+nothing repairable or the apply failed; 2 usage, root, or missing profile
+record (log lines from before profile recording are refused).
 .SH OPTIONS
 .TP
 .BR \-\-profile " " \fINAME\fR
@@ -136,8 +155,8 @@ the third-party disclosure and needs typed DNS-EXTRA-YES without
 UI language (default en).
 .TP
 .BR \-\-json " " \fIFILE\fR
-Write the scan report as JSON (scan), or the health check report
-(health).
+Write the scan report as JSON (scan), the health check report (health),
+or the pre-repair health report (repair).
 .TP
 .BR \-\-diff " " \fIBASELINE.json\fR
 Compare the fresh scan against a scan JSON saved earlier with

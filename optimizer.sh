@@ -55,6 +55,7 @@ Usage:
   optimizer benchmark --compare BEFORE AFTER [--format md|json|html]
   optimizer audit | update | uninstall | confirm <guard-id> [--force]
   optimizer health [--json FILE]   (read-only: drift check + pending guards)
+  optimizer repair [--dry-run] [--json FILE]  (re-apply drifted modules; root)
   optimizer ssh-close-port <port> (explicit; only after NEW-session proof)
   optimizer --help | --version
 EOF
@@ -71,7 +72,7 @@ CMD=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-  scan | recommend | apply | rollback | list-backups | status | benchmark | explain | audit | update | uninstall | confirm | ssh-close-port | health)
+  scan | recommend | apply | rollback | list-backups | status | benchmark | explain | audit | update | uninstall | confirm | ssh-close-port | health | repair)
     CMD="$1"
     shift
     if [[ "$CMD" == "explain" || "$CMD" == "rollback" || "$CMD" == "confirm" || "$CMD" == "ssh-close-port" ]]; then
@@ -294,6 +295,15 @@ health)
   export SRV_TUNE_JSON_OUT="$JSON_OUT"
   rc=0
   health_run || rc=$?
+  exit "$rc"
+  ;;
+repair)
+  # Drift repair: health replay, then re-apply ONLY the failed modules.
+  # shellcheck disable=SC1091
+  source "$SRV_TUNE_ROOT/lib/repair.sh"
+  export SRV_TUNE_JSON_OUT="$JSON_OUT"
+  rc=0
+  repair_run || rc=$?
   exit "$rc"
   ;;
 benchmark)
