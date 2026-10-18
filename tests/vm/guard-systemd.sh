@@ -94,6 +94,11 @@ printf 'PASS: revert fired with no parent alive\n'
 printf '=== 2. NEW-session confirm cancels ===\n'
 t2="$(mkcase g2)"
 SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export SRV_TUNE_STATE_DIR='$SRV_TUNE_STATE_DIR'; guard_start g2 8 >/dev/null"
+# Session-start detection resolves in whole seconds; on a loaded runner the
+# confirm shell can measure as OLDER than apply and be rejected (flake seen
+# in CI). A real operator confirms seconds later — wait so the new session
+# is unambiguously newer.
+sleep 2
 SSH_TTY=/dev/pts/91 bash -c "source '$ROOT/lib/ssh-guard.sh'; export SRV_TUNE_STATE_DIR='$SRV_TUNE_STATE_DIR'; guard_confirm g2"
 test -f "$SRV_TUNE_STATE_DIR/guard/cancelled-g2"
 if systemctl list-timers 'srv-tune-guard-g2.timer' 2>/dev/null | grep -q 'srv-tune-guard-g2'; then
