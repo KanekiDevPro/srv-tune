@@ -15,6 +15,10 @@
 
 </div>
 
+**Temper** (پیش‌تر **srv-tune**): تغییر نام از v0.5.0 اعمال شد و مهاجرت خودکار ندارد —
+روی سرورهایی که نام قبلی نصب بوده، drop-inهای قدیمی (`00-srv-tune*.conf`) و مسیر state
+قدیمی (`/var/lib/srv-tune`) را دستی حذف کنید.
+
 ```text
 SCAN → RECOMMEND → APPLY → VERIFY → ROLLBACK-IF-BROKEN
 ```

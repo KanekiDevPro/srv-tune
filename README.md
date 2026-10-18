@@ -15,6 +15,10 @@
 
 </div>
 
+**Temper** (formerly **srv-tune**): the rename ships with v0.5.0 and has no migration —
+on hosts that ran the old name, remove the old drop-ins (`00-srv-tune*.conf`) and the
+old state tree (`/var/lib/srv-tune`) by hand.
+
 ```text
 SCAN → RECOMMEND → APPLY → VERIFY → ROLLBACK-IF-BROKEN
 ```
