@@ -153,7 +153,8 @@ _tunnel_ss_stub() {
 cat <<'ROWS'
 State Recv-Q Send-Q Local Address:Port Peer Address:Port Process
 ESTAB 0 0 10.0.0.1:22 198.51.100.7:51000 users:(("sshd",pid=4242,fd=3))
-ESTAB 0 0 10.0.0.1:80 203.0.113.9:52000 users:(("nginx",pid=99,fd=3))
+ESTAB 0 0 10.0.0.1:2222 198.51.100.8:52000 users:(("sshd",pid=4343,fd=3))
+ESTAB 0 0 10.0.0.1:80 203.0.113.9:53000 users:(("nginx",pid=99,fd=3))
 ROWS
 EOF
   chmod +x "$stub"
@@ -166,6 +167,7 @@ EOF
   run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel sessions
   [ "$status" -eq 0 ]
   [[ "$output" == *"198.51.100.7:51000 pid=4242"* ]]
+  [[ "$output" != *"198.51.100.8"* ]]
   [[ "$output" != *"nginx"* ]]
   [[ "$output" != *"203.0.113.9"* ]]
 }
@@ -247,7 +249,7 @@ _tunnel_setup_custom_port() {
 Port 22
 Port 2222
 GatewayPorts no
-PermitTunnel no
+PermitTunnel yes
 Match User tunnel
   PermitTTY no
   ForceCommand /usr/sbin/nologin
@@ -271,6 +273,8 @@ EOF
   [ "$status" -eq 0 ]
   run grep -q 'PermitOpen git.internal:2222' "$f"
   [ "$status" -eq 0 ]
+  run grep -q '^PermitTunnel yes$' "$f"
+  [ "$status" -eq 0 ]
 }
 
 @test "tunnel sessions match every port in the drop-in" {
@@ -282,6 +286,7 @@ cat <<'ROWS'
 State Recv-Q Send-Q Local Address:Port Peer Address:Port Process
 ESTAB 0 0 10.0.0.1:22 198.51.100.7:51000 users:(("sshd",pid=4242,fd=3))
 ESTAB 0 0 10.0.0.1:2222 198.51.100.8:52000 users:(("sshd",pid=4343,fd=3))
+ESTAB 0 0 [::1]:2222 2001:db8::1:53000 users:(("sshd",pid=4444,fd=3))
 ESTAB 0 0 10.0.0.1:80 203.0.113.9:53000 users:(("nginx",pid=99,fd=3))
 ROWS
 EOF
@@ -291,7 +296,27 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"198.51.100.7:51000 pid=4242"* ]]
   [[ "$output" == *"198.51.100.8:52000 pid=4343"* ]]
+  [[ "$output" == *"2001:db8::1:53000 pid=4444"* ]]
   [[ "$output" != *"nginx"* ]]
+}
+
+@test "tunnel sessions notes the port-22 assumption when the drop-in has no Port" {
+  _tunnel_setup
+  cat >"$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf" <<'EOF'
+# srv-tune TUNNEL (why: forwarding server, no shell)
+GatewayPorts no
+PermitTunnel no
+Match User tunnel
+  PermitTTY no
+  ForceCommand /usr/sbin/nologin
+  PermitOpen db.internal:5432
+EOF
+  _tunnel_ss_stub
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel sessions
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no Port in the drop-in"* ]]
+  [[ "$output" == *"198.51.100.7:51000 pid=4242"* ]]
+  [[ "$output" != *"198.51.100.8"* ]]
 }
 
 @test "tunnel access set keeps its environment scoped to the call" {

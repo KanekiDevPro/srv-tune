@@ -18,6 +18,9 @@ All notable changes, newest first. Format: Conventional Commits subjects.
   stdlib HTTP panel, one-shot token login (HttpOnly cookie + CSRF),
   per-IP login rate limit, read-only sshd policy by design; reach it from
   a workstation with `ssh -L`.
+- Tunnel sessions: matches every `Port` in the drop-in (IPv6 included) and
+  prints a note to stderr when the drop-in has no `Port` (22 assumed); tests
+  pin `PermitTunnel` preservation through `access set`.
 
 ## v0.3.0 (2026-10-17)
 
