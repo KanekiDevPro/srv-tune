@@ -5,7 +5,7 @@
 #   ./install.sh [--prefix /usr/local] [--yes]
 #   curl -fsSL URL/install.sh | bash -s -- --yes   # NOT recommended blindly:
 #   read the script first: download it, read it, then run it with --yes.
-#   ./install.sh --tag v0.3.0 --sha256 <sum> [--prefix ...]  # pinned release
+#   ./install.sh --tag v0.4.0 --sha256 <sum> [--prefix ...]  # pinned release
 # No telemetry. No configuration changes. No services touched.
 # shellcheck shell=bash
 set -euo pipefail
