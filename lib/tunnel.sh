@@ -144,7 +144,10 @@ tunnel_sessions_parse() {
     [[ -n "$p" ]] || continue
     re="${re:+$re|}$p"
   done < <(tunnel_ports)
-  re="${re:-22}"
+  if [[ -z "$re" ]]; then
+    printf 'note: no Port in the drop-in; assuming port 22\n' >&2
+    re=22
+  fi
   "$bin" -tnp 2>/dev/null | awk -v re="^:($re)$" '
     NR == 1 { next }
     $1 == "ESTAB" {
