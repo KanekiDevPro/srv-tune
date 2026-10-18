@@ -69,14 +69,26 @@ tunnel_dropin_value() {
   fi
 }
 
+# tunnel_ports - every valid Port value in the applied drop-in, in file order.
+tunnel_ports() {
+  local f p
+  f="$(tunnel_dropin)"
+  [[ -f "$f" ]] || return 0
+  while IFS= read -r p; do
+    if [[ "$p" =~ ^[1-9][0-9]*$ ]] && [[ "$p" -le 65535 ]]; then
+      printf '%s\n' "$p"
+    fi
+  done < <(awk '$1 == "Port" {print $2}' "$f")
+}
+
+# tunnel_port - the operator's port: the LAST Port line (the renderer writes
+# the default 22 first and the chosen port after it). Falls back to 22.
 tunnel_port() {
-  local p
-  p="$(tunnel_dropin_value Port 2>/dev/null || true)"
-  if [[ "$p" =~ ^[0-9]+$ ]] && [[ "$p" -ge 1 && "$p" -le 65535 ]]; then
-    printf '%s\n' "$p"
-  else
-    printf '22\n'
-  fi
+  local p last=""
+  while IFS= read -r p; do
+    last="$p"
+  done < <(tunnel_ports)
+  printf '%s\n' "${last:-22}"
 }
 
 tunnel_user() {
@@ -121,17 +133,23 @@ tunnel_ip_forward() {
   fi
 }
 
-# tunnel_sessions_parse - ESTAB rows on the ssh port: peer<TAB>pid per line.
+# tunnel_sessions_parse - ESTAB rows on any ssh Port: peer<TAB>pid per line.
 tunnel_sessions_parse() {
-  local bin="${SRV_TUNE_SS_BIN:-ss}" port
+  local bin="${SRV_TUNE_SS_BIN:-ss}" p re=""
   if [[ -z "${SRV_TUNE_SS_BIN:-}" ]] && ! command -v ss >/dev/null 2>&1; then
     printf 'error: ss not found (iproute2); sessions unavailable\n' >&2
     return 2
   fi
-  port="$(tunnel_port)"
-  "$bin" -tnp 2>/dev/null | awk -v p=":$port" '
+  while IFS= read -r p; do
+    [[ -n "$p" ]] || continue
+    re="${re:+$re|}$p"
+  done < <(tunnel_ports)
+  re="${re:-22}"
+  "$bin" -tnp 2>/dev/null | awk -v re="^:($re)$" '
     NR == 1 { next }
-    $1 == "ESTAB" && substr($4, length($4) - length(p) + 1) == p {
+    $1 == "ESTAB" {
+      n = split($4, a, ":")
+      if ((":" a[n]) !~ re) next
       pid = ""
       if (match($0, /pid=[0-9]+/)) pid = substr($0, RSTART + 4, RLENGTH - 4)
       printf "%s\t%s\n", $5, pid
@@ -387,7 +405,7 @@ tunnel_keys_add() {
   done
   tunnel_require_root || return $?
   local keys input line fp body newline newfp existing
-  local state id bdir dir tmp
+  local state id bdir dir tmp rc
   keys="$(tunnel_keys_path)" || return $?
   if [[ -n "$file" && "$file" != "-" ]]; then
     if [[ ! -f "$file" ]]; then
@@ -426,64 +444,70 @@ tunnel_keys_add() {
     tunnel_audit key-add "$fp" "$comment" fail
     return 1
   fi
-  if [[ -f "$keys" ]]; then
-    while IFS= read -r existing; do
-      case "$existing" in
-      '' | \#*) continue ;;
-      esac
-      if [[ "$(tunnel_key_body "$existing")" == "$body" ]]; then
-        printf 'error: key already present (%s)\n' "$fp" >&2
+  lock_acquire || return 1
+  (
+    if [[ -f "$keys" ]]; then
+      while IFS= read -r existing; do
+        case "$existing" in
+        '' | \#*) continue ;;
+        esac
+        if [[ "$(tunnel_key_body "$existing")" == "$body" ]]; then
+          printf 'error: key already present (%s)\n' "$fp" >&2
+          tunnel_audit key-add "$fp" "$comment" fail
+          return 1
+        fi
+      done <"$keys"
+    fi
+    newline="$line"
+    if [[ "$have_comment" == "1" ]]; then
+      newline="$(tunnel_key_rewrite_comment "$line" "$comment")"
+      newfp="$(tunnel_key_fp "$newline")" || {
+        printf 'error: comment rewrite produced an invalid key\n' >&2
         tunnel_audit key-add "$fp" "$comment" fail
         return 1
-      fi
-    done <"$keys"
-  fi
-  newline="$line"
-  if [[ "$have_comment" == "1" ]]; then
-    newline="$(tunnel_key_rewrite_comment "$line" "$comment")"
-    newfp="$(tunnel_key_fp "$newline")" || {
-      printf 'error: comment rewrite produced an invalid key\n' >&2
-      tunnel_audit key-add "$fp" "$comment" fail
+      }
+      [[ "$newfp" == "$fp" ]] || {
+        printf 'error: comment rewrite changed the key\n' >&2
+        return 1
+      }
+    fi
+    state="$(state_effective_dir)" || return 1
+    id="$(new_backup_id)"
+    bdir="$state/backups/keys-$id"
+    backup_file "$keys" "$bdir" || {
+      printf 'error: could not back up %s\n' "$keys" >&2
       return 1
     }
-    [[ "$newfp" == "$fp" ]] || {
-      printf 'error: comment rewrite changed the key\n' >&2
+    dir="$(dirname "$keys")"
+    mkdir -p "$dir" || return 1
+    chmod 700 "$dir" 2>/dev/null || true
+    tmp="$(mktemp "$dir/.authorized_keys.XXXXXX")" || return 1
+    if [[ -s "$keys" ]]; then
+      cat "$keys" >>"$tmp"
+      # Keep a trailing newline so the new key starts on its own line.
+      [[ -n "$(tail -c 1 "$keys" 2>/dev/null)" ]] && printf '\n' >>"$tmp"
+    fi
+    printf '%s\n' "$newline" >>"$tmp"
+    chmod 600 "$tmp" 2>/dev/null || true
+    if ! mv -f "$tmp" "$keys"; then
+      rm -f "$tmp"
       return 1
-    }
-  fi
-  state="$(state_effective_dir)" || return 1
-  id="$(new_backup_id)"
-  bdir="$state/backups/keys-$id"
-  backup_file "$keys" "$bdir" || {
-    printf 'error: could not back up %s\n' "$keys" >&2
-    return 1
-  }
-  dir="$(dirname "$keys")"
-  mkdir -p "$dir" || return 1
-  chmod 700 "$dir" 2>/dev/null || true
-  tmp="$(mktemp "$dir/.authorized_keys.XXXXXX")" || return 1
-  if [[ -s "$keys" ]]; then
-    cat "$keys" >>"$tmp"
-    # Keep a trailing newline so the new key starts on its own line.
-    [[ -n "$(tail -c 1 "$keys" 2>/dev/null)" ]] && printf '\n' >>"$tmp"
-  fi
-  printf '%s\n' "$newline" >>"$tmp"
-  chmod 600 "$tmp" 2>/dev/null || true
-  if ! mv -f "$tmp" "$keys"; then
-    rm -f "$tmp"
-    return 1
-  fi
-  chmod 600 "$keys" 2>/dev/null || true
-  if is_root && id "$(tunnel_user)" >/dev/null 2>&1; then
-    chown "$(tunnel_user):$(tunnel_user)" "$dir" "$keys" 2>/dev/null ||
-      printf 'warn: chown failed for %s\n' "$keys" >&2
-  fi
-  tunnel_audit key-add "$fp" "$(tunnel_key_comment "$newline")" ok
-  printf 'added %s (%s)\n' "$fp" "$(tunnel_key_comment "$newline")"
+    fi
+    chmod 600 "$keys" 2>/dev/null || true
+    if is_root && id "$(tunnel_user)" >/dev/null 2>&1; then
+      chown "$(tunnel_user):$(tunnel_user)" "$dir" "$keys" 2>/dev/null ||
+        printf 'warn: chown failed for %s\n' "$keys" >&2
+    fi
+    tunnel_audit key-add "$fp" "$(tunnel_key_comment "$newline")" ok
+    printf 'added %s (%s)\n' "$fp" "$(tunnel_key_comment "$newline")"
+  )
+  rc=$?
+  lock_release
+  return "$rc"
 }
 
 tunnel_keys_remove() {
-  local fp="" keys state id bdir dir tmp line lfp found=0
+  local fp="" keys state id bdir dir tmp line lfp found=0 rc
   while [[ $# -gt 0 ]]; do
     case "$1" in
     --fp)
@@ -502,56 +526,62 @@ tunnel_keys_remove() {
   fi
   tunnel_require_root || return $?
   keys="$(tunnel_keys_path)" || return $?
-  if [[ ! -s "$keys" ]]; then
-    printf 'error: no keys for the tunnel user\n' >&2
-    tunnel_audit key-remove "$fp" "" fail
-    return 1
-  fi
-  dir="$(dirname "$keys")"
-  tmp="$(mktemp "$dir/.authorized_keys.XXXXXX")" || return 1
-  while IFS= read -r line; do
-    case "$line" in
-    '' | \#*)
-      printf '%s\n' "$line" >>"$tmp"
-      continue
-      ;;
-    esac
-    lfp="$(tunnel_key_fp "$line" 2>/dev/null || true)"
-    if [[ "$lfp" == "$fp" ]]; then
-      found=1
-      continue
+  lock_acquire || return 1
+  (
+    if [[ ! -s "$keys" ]]; then
+      printf 'error: no keys for the tunnel user\n' >&2
+      tunnel_audit key-remove "$fp" "" fail
+      return 1
     fi
-    printf '%s\n' "$line" >>"$tmp"
-  done <"$keys"
-  if [[ "$found" != "1" ]]; then
-    rm -f "$tmp"
-    printf 'error: key not found: %s\n' "$fp" >&2
-    tunnel_audit key-remove "$fp" "" fail
-    return 1
-  fi
-  state="$(state_effective_dir)" || {
-    rm -f "$tmp"
-    return 1
-  }
-  id="$(new_backup_id)"
-  bdir="$state/backups/keys-$id"
-  if ! backup_file "$keys" "$bdir"; then
-    rm -f "$tmp"
-    printf 'error: could not back up %s\n' "$keys" >&2
-    return 1
-  fi
-  chmod 600 "$tmp" 2>/dev/null || true
-  if ! mv -f "$tmp" "$keys"; then
-    rm -f "$tmp"
-    return 1
-  fi
-  chmod 600 "$keys" 2>/dev/null || true
-  if is_root && id "$(tunnel_user)" >/dev/null 2>&1; then
-    chown "$(tunnel_user):$(tunnel_user)" "$dir" "$keys" 2>/dev/null ||
-      printf 'warn: chown failed for %s\n' "$keys" >&2
-  fi
-  tunnel_audit key-remove "$fp" "" ok
-  printf 'removed %s\n' "$fp"
+    dir="$(dirname "$keys")"
+    tmp="$(mktemp "$dir/.authorized_keys.XXXXXX")" || return 1
+    while IFS= read -r line; do
+      case "$line" in
+      '' | \#*)
+        printf '%s\n' "$line" >>"$tmp"
+        continue
+        ;;
+      esac
+      lfp="$(tunnel_key_fp "$line" 2>/dev/null || true)"
+      if [[ "$lfp" == "$fp" ]]; then
+        found=1
+        continue
+      fi
+      printf '%s\n' "$line" >>"$tmp"
+    done <"$keys"
+    if [[ "$found" != "1" ]]; then
+      rm -f "$tmp"
+      printf 'error: key not found: %s\n' "$fp" >&2
+      tunnel_audit key-remove "$fp" "" fail
+      return 1
+    fi
+    state="$(state_effective_dir)" || {
+      rm -f "$tmp"
+      return 1
+    }
+    id="$(new_backup_id)"
+    bdir="$state/backups/keys-$id"
+    if ! backup_file "$keys" "$bdir"; then
+      rm -f "$tmp"
+      printf 'error: could not back up %s\n' "$keys" >&2
+      return 1
+    fi
+    chmod 600 "$tmp" 2>/dev/null || true
+    if ! mv -f "$tmp" "$keys"; then
+      rm -f "$tmp"
+      return 1
+    fi
+    chmod 600 "$keys" 2>/dev/null || true
+    if is_root && id "$(tunnel_user)" >/dev/null 2>&1; then
+      chown "$(tunnel_user):$(tunnel_user)" "$dir" "$keys" 2>/dev/null ||
+        printf 'warn: chown failed for %s\n' "$keys" >&2
+    fi
+    tunnel_audit key-remove "$fp" "" ok
+    printf 'removed %s\n' "$fp"
+  )
+  rc=$?
+  lock_release
+  return "$rc"
 }
 
 tunnel_cmd_keys() {
@@ -698,26 +728,30 @@ tunnel_access_set() {
     }
   fi
   # Our own typed confirm replaces the module's second gate for this one
-  # explicit edit; the guard below is untouched.
-  export SRV_TUNE_ASSUME_YES=1
-  export SRV_TUNE_SSH_MODE=TUNNEL
-  export SRV_TUNE_TUNNEL_USER="$user"
-  export SRV_TUNE_SSH_PORT="$port"
-  export SRV_TUNE_PERMIT_OPEN="$permit_open"
-  export SRV_TUNE_TUNNEL_GATEWAY=0
-  [[ "$gateway" == "yes" ]] && export SRV_TUNE_TUNNEL_GATEWAY=1
-  if [[ "$tun" == "1" ]]; then
-    export SRV_TUNE_TUNNEL_MODE=tun
-  else
-    unset SRV_TUNE_TUNNEL_MODE
-  fi
-  export SRV_TUNE_WITH_SSH=1
-  export SRV_TUNE_PROFILE=vpn-tunnel
-  lock_acquire || return 1
-  local rc=0
-  run_apply vpn-tunnel ssh || rc=$?
-  lock_release
-  return "$rc"
+  # explicit edit; the guard below is untouched. The knobs live in a
+  # subshell: the TUI calls this from a long-lived shell, and a leaked
+  # SRV_TUNE_ASSUME_YES would auto-accept every later prompt.
+  (
+    export SRV_TUNE_ASSUME_YES=1
+    export SRV_TUNE_SSH_MODE=TUNNEL
+    export SRV_TUNE_TUNNEL_USER="$user"
+    export SRV_TUNE_SSH_PORT="$port"
+    export SRV_TUNE_PERMIT_OPEN="$permit_open"
+    export SRV_TUNE_TUNNEL_GATEWAY=0
+    [[ "$gateway" == "yes" ]] && export SRV_TUNE_TUNNEL_GATEWAY=1
+    if [[ "$tun" == "1" ]]; then
+      export SRV_TUNE_TUNNEL_MODE=tun
+    else
+      unset SRV_TUNE_TUNNEL_MODE
+    fi
+    export SRV_TUNE_WITH_SSH=1
+    export SRV_TUNE_PROFILE=vpn-tunnel
+    lock_acquire || exit 1
+    rc=0
+    run_apply vpn-tunnel ssh || rc=$?
+    lock_release
+    exit "$rc"
+  )
 }
 
 tunnel_cmd_sessions() {

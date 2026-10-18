@@ -117,6 +117,18 @@ _chmod_effective() {
   [ "$output" = "405" ]
 }
 
+@test "non-ASCII credentials are rejected, not crashed" {
+  run curl -s -o /dev/null -w '%{http_code}' "$BASE/?token=%C3%A9"
+  [ "$output" = "401" ]
+  run curl -s -o /dev/null -w '%{http_code}' -H 'Cookie: st=é' "$BASE/"
+  [ "$output" = "401" ]
+  curl -s -c "$JAR" "$BASE/?token=$TOKEN" -o /dev/null
+  run curl -s -b "$JAR" -H 'Content-Type: application/json' -H 'X-CSRF: é' \
+    -d '{"fp":"SHA256:abc"}' -o /dev/null -w '%{http_code}' \
+    "$BASE/api/keys/remove"
+  [ "$output" = "403" ]
+}
+
 @test "login renders the dashboard with status, sessions, and keys" {
   [[ "${SKIP_CLI:-0}" == "1" ]] && skip "stub CLI needs POSIX exec (Linux CI covers it)"
   _login

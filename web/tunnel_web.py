@@ -191,7 +191,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _authed(self):
         got = self._st_cookie()
-        return bool(got) and hmac.compare_digest(got, self.server.cookie)
+        return bool(got) and hmac.compare_digest(
+            got.encode("utf-8", "replace"), self.server.cookie.encode("ascii")
+        )
 
     def _lang(self):
         query = parse_qs(urlsplit(self.path).query)
@@ -265,7 +267,9 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(url.query)
         token = (query.get("token") or [""])[0]
         if token:
-            if not hmac.compare_digest(token, self.server.token):
+            if not hmac.compare_digest(
+                token.encode("utf-8", "replace"), self.server.token.encode("ascii")
+            ):
                 # Only login attempts count toward the rate limit, so a
                 # stale cookie cannot lock out the auto-refreshing dashboard.
                 self._record_failure()
@@ -433,7 +437,9 @@ textarea{width:100%%;font-family:ui-monospace,monospace}
         if parsed is None:
             return None
         payload, csrf, form = parsed
-        if not hmac.compare_digest(csrf, self.server.csrf):
+        if not hmac.compare_digest(
+            csrf.encode("utf-8", "replace"), self.server.csrf.encode("ascii")
+        ):
             return self._respond(403, "csrf check failed\n")
         if url.path == "/api/keys/add":
             return self._keys_add(payload, form)

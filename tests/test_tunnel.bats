@@ -186,8 +186,8 @@ _tunnel_access_stubs() {
   local dir="$SRV_TUNE_TMP/stubbin"
   mkdir -p "$dir"
   printf '#!/bin/sh\nexit 0\n' >"$dir/sshd"
-  # ssh_wait_port greps ":22 " from ss; emit one listening row.
-  printf '#!/bin/sh\nprintf "LISTEN 0 128 0.0.0.0:22 0.0.0.0:*\\n"\n' >"$dir/ss"
+  # ssh_wait_port greps ":<port> "; emit rows for 22 and a custom 2222.
+  printf '#!/bin/sh\nprintf "LISTEN 0 128 0.0.0.0:22 0.0.0.0:*\\nLISTEN 0 128 0.0.0.0:2222 0.0.0.0:*\\n"\n' >"$dir/ss"
   chmod +x "$dir/sshd" "$dir/ss"
   export SRV_TUNE_SSHD_BIN="$dir/sshd"
   export SRV_TUNE_SS_BIN="$dir/ss"
@@ -238,4 +238,101 @@ _tunnel_access_stubs() {
   run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel access show --json
   [ "$status" -eq 0 ]
   [[ "$output" == *'"permit_tunnel":false'* ]]
+}
+
+_tunnel_setup_custom_port() {
+  _tunnel_setup
+  cat >"$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf" <<'EOF'
+# srv-tune TUNNEL (why: forwarding server, no shell)
+Port 22
+Port 2222
+GatewayPorts no
+PermitTunnel no
+Match User tunnel
+  PermitTTY no
+  ForceCommand /usr/sbin/nologin
+  PermitOpen db.internal:5432
+EOF
+}
+
+@test "tunnel access set preserves a custom port listed after Port 22" {
+  _tunnel_setup_custom_port
+  _tunnel_access_stubs
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel status --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"port":"2222"'* ]]
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel access set \
+    --permit-open git.internal:2222 --gateway-ports no --yes
+  [ "$status" -eq 0 ]
+  local f="$SRV_TUNE_SYSROOT/etc/ssh/sshd_config.d/00-srv-tune.conf"
+  run grep -q '^Port 22$' "$f"
+  [ "$status" -eq 0 ]
+  run grep -q '^Port 2222$' "$f"
+  [ "$status" -eq 0 ]
+  run grep -q 'PermitOpen git.internal:2222' "$f"
+  [ "$status" -eq 0 ]
+}
+
+@test "tunnel sessions match every port in the drop-in" {
+  _tunnel_setup_custom_port
+  local stub="$SRV_TUNE_TMP/ss-ports"
+  cat >"$stub" <<'EOF'
+#!/usr/bin/env bash
+cat <<'ROWS'
+State Recv-Q Send-Q Local Address:Port Peer Address:Port Process
+ESTAB 0 0 10.0.0.1:22 198.51.100.7:51000 users:(("sshd",pid=4242,fd=3))
+ESTAB 0 0 10.0.0.1:2222 198.51.100.8:52000 users:(("sshd",pid=4343,fd=3))
+ESTAB 0 0 10.0.0.1:80 203.0.113.9:53000 users:(("nginx",pid=99,fd=3))
+ROWS
+EOF
+  chmod +x "$stub"
+  export SRV_TUNE_SS_BIN="$stub"
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel sessions
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"198.51.100.7:51000 pid=4242"* ]]
+  [[ "$output" == *"198.51.100.8:52000 pid=4343"* ]]
+  [[ "$output" != *"nginx"* ]]
+}
+
+@test "tunnel access set keeps its environment scoped to the call" {
+  _tunnel_setup_custom_port
+  _tunnel_access_stubs
+  run bash -c '
+    set -u
+    source "$SRV_TUNE_ROOT/lib/tunnel.sh"
+    run_apply() { return 0; }
+    tunnel_access_set --permit-open db.internal:5432 --gateway-ports no --yes
+    rc=$?
+    printf "rc=%s assume=[%s] ssh_port=[%s] profile=[%s] mode=[%s]\n" \
+      "$rc" "${SRV_TUNE_ASSUME_YES:-}" "${SRV_TUNE_SSH_PORT:-}" \
+      "${SRV_TUNE_PROFILE:-}" "${SRV_TUNE_SSH_MODE:-}"
+  '
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"rc=0 assume=[] ssh_port=[] profile=[] mode=[]"* ]]
+}
+
+@test "tunnel keys add and remove refuse while another run holds the lock" {
+  _tunnel_setup
+  _tunnel_keygen
+  local marker="$SRV_TUNE_TMP/lock-held" hold i=0
+  bash -c '
+    source "$SRV_TUNE_ROOT/lib/lock.sh"
+    lock_acquire || exit 1
+    : >"$1"
+    sleep 10
+  ' bash "$marker" &
+  hold=$!
+  while [[ ! -f "$marker" && "$i" -lt 50 ]]; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+  [ -f "$marker" ]
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel keys add <<<"$KEY"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"another srv-tune run"* ]]
+  run bash "$SRV_TUNE_ROOT/optimizer.sh" tunnel keys remove --fp SHA256:abc
+  kill "$hold" 2>/dev/null || true
+  wait "$hold" 2>/dev/null || true
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"another srv-tune run"* ]]
 }
