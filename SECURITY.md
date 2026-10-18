@@ -2,10 +2,12 @@
 
 ## Reporting
 
-Email the maintainer privately (see `git log` for the contact) with:
-what you ran, the OS/version, relevant logs (redact hostnames/keys), and
-whether a guard/rollback was involved. Do NOT open a public issue for a
-suspected vulnerability. Expect an acknowledgment within 7 days.
+Use GitHub's private vulnerability reporting (Security tab → "Report a
+vulnerability"), or email the maintainer privately (see `git log` for the
+contact), with: what you ran, the OS/version, relevant logs (redact
+hostnames/keys), and whether a guard/rollback was involved. Do NOT open a
+public issue for a suspected vulnerability. Expect an acknowledgment
+within 7 days.
 
 ## Scope notes
 
