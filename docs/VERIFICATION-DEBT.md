@@ -63,6 +63,14 @@ never by assertion.
   writes nothing, sandboxed re-apply + log record, gated-module refusal,
   missing/mixed profile records (exit 2), and --json. A real-host repair run
   after external drift remains manual. Pending this branch's merge.
+- [x] Status 2026-10-18 (tunnel UI polish PR): v0.3.0 exercised both release
+  gates — the release workflow run on the tag succeeded and the release was
+  published 2026-10-17; `tests/pre-publish.sh` re-runs clean (exit 0) on
+  master, so the triage entry above no longer reproduces; the repair entry
+  ("Pending this branch's merge") is closed by PR #18 (a469d30). Tunnel UI
+  row: coverage now also pins `PermitTunnel` preservation through `access
+  set`, IPv6 peers, and the no-`Port` stderr note; `TESTING-VM §7` remains
+  the human-only debt.
 
 ## Manual scenario tracker (TESTING-VM.md)
 
