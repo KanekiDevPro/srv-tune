@@ -1,5 +1,5 @@
 [Unit]
-Description=srv-tune autossh tunnel (%i)
+Description=temper autossh tunnel (%i)
 After=network-online.target
 
 [Service]

@@ -9,14 +9,14 @@
 # shellcheck shell=bash
 
 mirror_os_id() {
-  local f="${SRV_TUNE_OS_RELEASE:-/etc/os-release}" id
+  local f="${TEMPER_OS_RELEASE:-/etc/os-release}" id
   id="$(grep -E '^ID=' "$f" 2>/dev/null | tail -n 1 | cut -d= -f2 | tr -d '"' || true)"
   [[ -z "$id" ]] && id="unknown"
   printf '%s\n' "$id"
 }
 
 mirror_list_file() {
-  local root="${SRV_TUNE_ROOT:-.}" id
+  local root="${TEMPER_ROOT:-.}" id
   id="$(mirror_os_id)"
   case "$id" in
   ubuntu) printf '%s/data/mirrors-ubuntu.list\n' "$root" ;;
@@ -206,7 +206,7 @@ mirror_verify() {
   fi
   mirror_suite_warn || true
   mirror_freshness_warn || true
-  if [[ "${SRV_TUNE_TEST:-0}" == "1" && "${SRV_TUNE_FORCE_LIVE_VERIFY:-0}" != "1" ]]; then
+  if [[ "${TEMPER_TEST:-0}" == "1" && "${TEMPER_FORCE_LIVE_VERIFY:-0}" != "1" ]]; then
     return 0
   fi
   if command -v apt-get >/dev/null 2>&1; then

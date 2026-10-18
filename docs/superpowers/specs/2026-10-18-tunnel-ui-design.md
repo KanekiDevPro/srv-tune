@@ -1,4 +1,4 @@
-# srv-tune tunnel UI — design spec
+# temper tunnel UI — design spec
 
 Status: draft for review
 Date: 2026-10-18
@@ -23,7 +23,7 @@ in a browser (panel) — without weakening the existing lockout guards.
   dedupe, correct permissions, and an audit log.
 - Access policy (`PermitOpen`, `GatewayPorts`): same apply rails as the ssh
   module — backup, atomic write, `sshd -t`, reload, verify, timed
-  auto-revert; confirmation only via `srv-tune confirm <id>` from a NEW
+  auto-revert; confirmation only via `temper confirm <id>` from a NEW
   session.
 - Web panel: loopback-bound, token auth, dashboard + key management.
 - TUI: zero new runtime dependencies. Panel: python3 stdlib only, optional.
@@ -38,7 +38,7 @@ in a browser (panel) — without weakening the existing lockout guards.
 ## Architecture
 
 ```
-srv-tune tunnel [status|keys|access|sessions|web]
+temper tunnel [status|keys|access|sessions|web]
         |
         +-- lib/tunnel.sh        all logic + safety rails (bash)
         |
@@ -48,7 +48,7 @@ srv-tune tunnel [status|keys|access|sessions|web]
 ```
 
 The web server is a subprocess client of the installed CLI
-(`srv-tune tunnel ... --json`), so both frontends exercise exactly the same
+(`temper tunnel ... --json`), so both frontends exercise exactly the same
 code path and tests.
 
 ## State and files
@@ -56,9 +56,9 @@ code path and tests.
 | What | Where | Notes |
 |---|---|---|
 | Tunnel user keys | `~tunnel/.ssh/authorized_keys` | dir `0700`, file `0600`, owner `tunnel` |
-| Key backups | `/var/lib/srv-tune/backups/keys-<utc>/` | `authorized_keys` + `manifest.tsv` (reuse backup patterns) |
-| Audit log | `/var/lib/srv-tune/tunnel-actions.log` | append-only, one line per mutation |
-| Web token | `/var/lib/srv-tune/web/token` | 32 hex chars, `0600`, created on first `tunnel web` |
+| Key backups | `/var/lib/temper/backups/keys-<utc>/` | `authorized_keys` + `manifest.tsv` (reuse backup patterns) |
+| Audit log | `/var/lib/temper/tunnel-actions.log` | append-only, one line per mutation |
+| Web token | `/var/lib/temper/web/token` | 32 hex chars, `0600`, created on first `tunnel web` |
 
 Audit line format:
 
@@ -69,15 +69,15 @@ ts=<ISO-8601> actor=tui|web action=key-add fp=SHA256:... comment="..." src=<ip|t
 ## CLI contract
 
 ```
-srv-tune tunnel                     # TUI (non-tty: prints status, exit 0)
-srv-tune tunnel status [--json]
-srv-tune tunnel keys list [--json]
-srv-tune tunnel keys add [--file PATH|-] [--comment TEXT]
-srv-tune tunnel keys remove --fp SHA256:...
-srv-tune tunnel access show [--json]
-srv-tune tunnel access set --permit-open LIST --gateway-ports yes|no
-srv-tune tunnel sessions [--json]
-srv-tune tunnel web [--port 8787] [--bind 127.0.0.1]
+temper tunnel                     # TUI (non-tty: prints status, exit 0)
+temper tunnel status [--json]
+temper tunnel keys list [--json]
+temper tunnel keys add [--file PATH|-] [--comment TEXT]
+temper tunnel keys remove --fp SHA256:...
+temper tunnel access show [--json]
+temper tunnel access set --permit-open LIST --gateway-ports yes|no
+temper tunnel sessions [--json]
+temper tunnel web [--port 8787] [--bind 127.0.0.1]
 ```
 
 - `keys add` reads the public key from `--file` or stdin (stdin keeps key
@@ -87,7 +87,7 @@ srv-tune tunnel web [--port 8787] [--bind 127.0.0.1]
   values come from `access show`. `--permit-open` takes a comma-separated
   list in sshd syntax (`host:port[,host:port]`), or `none` to disable
   forwarding targets. It goes through the existing ssh apply rails and
-  prints the guard id; cancel with `srv-tune confirm <id>` from a NEW
+  prints the guard id; cancel with `temper confirm <id>` from a NEW
   session.
 - Root: `keys` and `access set` require root. `status`, `sessions` and
   `access show` are best-effort unprivileged and print a note when a value
@@ -112,7 +112,7 @@ srv-tune tunnel web [--port 8787] [--bind 127.0.0.1]
 
 ### sshd policy
 - Render the tunnel drop-in via the existing `ssh_render_tunnel` with
-  `SRV_TUNE_PERMIT_OPEN` / `SRV_TUNE_TUNNEL_GATEWAY` overrides.
+  `TEMPER_PERMIT_OPEN` / `TEMPER_TUNNEL_GATEWAY` overrides.
 - Backup → atomic write → `sshd -t` → reload → verify (daemon up, port
   listening) → `guard_start` (timed auto-revert, NEW-session confirm).
 - Main configs are never edited; drop-in only.
@@ -131,7 +131,7 @@ srv-tune tunnel web [--port 8787] [--bind 127.0.0.1]
 - **Policy changes are deliberately absent from the panel.** The guard's
   new-session confirmation is a human-in-an-SSH-shell step; a web page must
   not be able to confirm a change that could lock the operator out.
-- The panel calls `$SRV_TUNE_BIN` when set, otherwise `srv-tune` from
+- The panel calls `$TEMPER_BIN` when set, otherwise `temper` from
   `PATH`, always with `--json`.
 - The panel runs as root (it must chown keys to the tunnel user) and stays
   in the foreground; `Referrer-Policy: no-referrer`, no external assets.
@@ -167,7 +167,7 @@ srv-tune tunnel web [--port 8787] [--bind 127.0.0.1]
 
 - `tests/test_tunnel.bats`: status render from fixtures; key add/remove,
   dedupe, invalid key, permissions; access render + guard arming under
-  `SRV_TUNE_TEST` paths; non-tty behavior; exit codes.
+  `TEMPER_TEST` paths; non-tty behavior; exit codes.
 - `tests/test_tunnel_web.bats`: server on a random port with a stub CLI —
   401 without cookie, login flow, CSRF enforcement, keys add/remove
   round-trip, non-loopback bind refused without `--bind`, token-perm check.
@@ -179,8 +179,8 @@ srv-tune tunnel web [--port 8787] [--bind 127.0.0.1]
 
 ## Docs and debt
 
-- `docs/srv-tune.1`: tunnel section and options.
-- `completion/srv-tune.bash`: subcommands and flags.
+- `docs/temper.1`: tunnel section and options.
+- `completion/temper.bash`: subcommands and flags.
 - `CHANGELOG.md`: Unreleased entry.
 - `docs/VERIFICATION-DEBT.md`: new row for the tunnel UI with truthful
   status (unit + integration in CI; real-VM matrix entry until exercised).

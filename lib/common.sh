@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# Shared constants and strict-mode helpers for srv-tune.
+# Shared constants and strict-mode helpers for temper.
 # shellcheck shell=bash
 
 set -euo pipefail
 
-if [[ -n "${__SRV_TUNE_COMMON_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_COMMON_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_COMMON_SOURCED=1
+__TEMPER_COMMON_SOURCED=1
 
-SRV_TUNE_NAME="srv-tune"
-SRV_TUNE_VERSION="$(cat "${SRV_TUNE_ROOT:-.}/VERSION" 2>/dev/null || echo "0.1.0")"
-export SRV_TUNE_NAME SRV_TUNE_VERSION
-readonly SRV_TUNE_NAME SRV_TUNE_VERSION
+TEMPER_NAME="temper"
+TEMPER_VERSION="$(cat "${TEMPER_ROOT:-.}/VERSION" 2>/dev/null || echo "0.1.0")"
+export TEMPER_NAME TEMPER_VERSION
+readonly TEMPER_NAME TEMPER_VERSION
 
-: "${SRV_TUNE_STATE_DIR:=/var/lib/srv-tune}"
-: "${SRV_TUNE_LOCK_FILE:=/run/srv-tune.lock}"
-: "${SRV_TUNE_LANG:=en}"
-export SRV_TUNE_STATE_DIR SRV_TUNE_LOCK_FILE SRV_TUNE_LANG
+: "${TEMPER_STATE_DIR:=/var/lib/temper}"
+: "${TEMPER_LOCK_FILE:=/run/temper.lock}"
+: "${TEMPER_LANG:=en}"
+export TEMPER_STATE_DIR TEMPER_LOCK_FILE TEMPER_LANG
 
-srv_tune_root() {
+temper_root() {
   local src="${BASH_SOURCE[0]:-$0}"
   local dir
   dir="$(cd "$(dirname "$src")/.." && pwd)"
@@ -28,15 +28,15 @@ srv_tune_root() {
 }
 
 # Portable command check (no GNU-only flags).
-srv_tune_has() {
+temper_has() {
   command -v "$1" >/dev/null 2>&1
 }
 
-srv_tune_die() {
+temper_die() {
   printf 'error: %s\n' "$*" >&2
   exit 1
 }
 
-srv_tune_warn() {
+temper_warn() {
   printf 'warn: %s\n' "$*" >&2
 }

@@ -8,18 +8,18 @@
 # shellcheck shell=bash
 
 docker_mirror_have() {
-  # SRV_TUNE_DOCKER_BIN overrides detection (tests): "none" forces absent.
-  if [[ "${SRV_TUNE_DOCKER_BIN:-}" == "none" ]]; then
+  # TEMPER_DOCKER_BIN overrides detection (tests): "none" forces absent.
+  if [[ "${TEMPER_DOCKER_BIN:-}" == "none" ]]; then
     return 1
   fi
-  if [[ -n "${SRV_TUNE_DOCKER_BIN:-}" ]]; then
+  if [[ -n "${TEMPER_DOCKER_BIN:-}" ]]; then
     return 0
   fi
   command -v docker >/dev/null 2>&1
 }
 
 docker_mirror_url() {
-  registry_pick_url "${SRV_TUNE_ROOT:-.}/data/mirrors-docker.list"
+  registry_pick_url "${TEMPER_ROOT:-.}/data/mirrors-docker.list"
 }
 
 docker_mirror_detect() {
@@ -44,8 +44,8 @@ docker_mirror_recommend() {
 
 # docker_json_tool - merge backend: python3, jq, or none (refuse to merge).
 docker_json_tool() {
-  if [[ -n "${SRV_TUNE_JSON_TOOL:-}" ]]; then
-    printf '%s\n' "$SRV_TUNE_JSON_TOOL"
+  if [[ -n "${TEMPER_JSON_TOOL:-}" ]]; then
+    printf '%s\n' "$TEMPER_JSON_TOOL"
     return 0
   fi
   if command -v python3 >/dev/null 2>&1; then
@@ -67,7 +67,7 @@ docker_merge_mirrors() {
       printf 'error: existing daemon.json is not valid JSON; refusing to merge\n' >&2
       return 1
     }
-    SRV_TUNE_MERGE_URL="$url" python3 -c '
+    TEMPER_MERGE_URL="$url" python3 -c '
 import json, os, sys
 src, dst = sys.argv[1], sys.argv[2]
 doc = json.load(open(src))
@@ -75,8 +75,8 @@ cur = doc.get("registry-mirrors", [])
 if not isinstance(cur, list):
     print("error: registry-mirrors is not a list", file=sys.stderr)
     sys.exit(1)
-if os.environ["SRV_TUNE_MERGE_URL"] not in cur:
-    cur.append(os.environ["SRV_TUNE_MERGE_URL"])
+if os.environ["TEMPER_MERGE_URL"] not in cur:
+    cur.append(os.environ["TEMPER_MERGE_URL"])
 doc["registry-mirrors"] = cur
 json.dump(doc, open(dst, "w"), indent=2)
 ' "$existing" "$out" || return 1

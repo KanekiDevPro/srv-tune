@@ -6,18 +6,18 @@
 # shellcheck shell=bash
 
 pip_mirror_have() {
-  # SRV_TUNE_PIP_BIN overrides detection (tests): "none" forces absent.
-  if [[ "${SRV_TUNE_PIP_BIN:-}" == "none" ]]; then
+  # TEMPER_PIP_BIN overrides detection (tests): "none" forces absent.
+  if [[ "${TEMPER_PIP_BIN:-}" == "none" ]]; then
     return 1
   fi
-  if [[ -n "${SRV_TUNE_PIP_BIN:-}" ]]; then
+  if [[ -n "${TEMPER_PIP_BIN:-}" ]]; then
     return 0
   fi
   command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1
 }
 
 pip_mirror_url() {
-  registry_pick_url "${SRV_TUNE_ROOT:-.}/data/mirrors-pip.list"
+  registry_pick_url "${TEMPER_ROOT:-.}/data/mirrors-pip.list"
 }
 
 pip_mirror_detect() {
@@ -52,7 +52,7 @@ pip_mirror_apply() {
     return 1
   }
   tmp="$(mktemp)"
-  printf '# srv-tune pip mirror\n[global]\nindex-url = %s\n' "$url" >"$tmp"
+  printf '# temper pip mirror\n[global]\nindex-url = %s\n' "$url" >"$tmp"
   apply_file "$backup_dir" "$(sys_p /etc/pip.conf)" "$tmp" "pip index $url" || return 1
   return 0
 }

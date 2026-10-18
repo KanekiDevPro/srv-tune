@@ -4,10 +4,10 @@
 # Avoids GNU-only flags (uutils/coreutils compatible).
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_DETECT_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_DETECT_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_DETECT_SOURCED=1
+__TEMPER_DETECT_SOURCED=1
 
 detect_virt() {
   if [[ -f /.dockerenv ]]; then

@@ -2,17 +2,17 @@
 # SPDX-License-Identifier: MIT
 # SSH guard: independent timed auto-revert that survives crash/disconnect.
 # Confirm only via `optimizer confirm` from a NEW session.
-# SRV_TUNE_GUARD_BACKEND: auto (default) | systemd | nohup. Tests override it;
+# TEMPER_GUARD_BACKEND: auto (default) | systemd | nohup. Tests override it;
 # production leaves it unset.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_SSHGUARD_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_SSHGUARD_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_SSHGUARD_SOURCED=1
+__TEMPER_SSHGUARD_SOURCED=1
 
 guard_dir() {
-  printf '%s/guard\n' "${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
+  printf '%s/guard\n' "${TEMPER_STATE_DIR:-/var/lib/temper}"
 }
 
 _current_tty() {
@@ -29,10 +29,10 @@ _current_tty() {
 }
 
 guard_use_systemd() {
-  if [[ "${SRV_TUNE_GUARD_BACKEND:-auto}" == "nohup" ]]; then
+  if [[ "${TEMPER_GUARD_BACKEND:-auto}" == "nohup" ]]; then
     return 1
   fi
-  if [[ "${SRV_TUNE_GUARD_BACKEND:-auto}" == "systemd" ]]; then
+  if [[ "${TEMPER_GUARD_BACKEND:-auto}" == "systemd" ]]; then
     return 0
   fi
   command -v systemd-run >/dev/null 2>&1 && [[ -d /run/systemd/system ]]
@@ -48,7 +48,7 @@ guard_start() {
   esac
   local gdir revert_script state_dir
   gdir="$(guard_dir)"
-  state_dir="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
+  state_dir="${TEMPER_STATE_DIR:-/var/lib/temper}"
   mkdir -p "$gdir" || return 1
   revert_script="$gdir/revert-${backup_id}.sh"
   # Self-contained: embeds the restore loop so firing needs no install paths.
@@ -81,7 +81,7 @@ EOF
   # (disowned: survives crash/disconnect of this session).
   if guard_use_systemd; then
     local run_err
-    if run_err="$(systemd-run --quiet --on-active="${timeout}" --unit "srv-tune-guard-${backup_id}" --timer-property=AccuracySec=5 \
+    if run_err="$(systemd-run --quiet --on-active="${timeout}" --unit "temper-guard-${backup_id}" --timer-property=AccuracySec=5 \
       "$revert_script" 2>&1 >/dev/null)"; then
       printf '%s\n' "$backup_id"
       return 0
@@ -160,7 +160,7 @@ guard_confirm() {
   local pending
   pending="$gdir/pending-${backup_id}.lockdown"
   if [[ -f "$pending" ]]; then
-    local root="${SRV_TUNE_ROOT:-.}"
+    local root="${TEMPER_ROOT:-.}"
     if [[ -f "$root/modules/ssh.sh" ]]; then
       # shellcheck disable=SC1090
       source "$root/modules/ssh.sh"
@@ -175,7 +175,7 @@ guard_confirm() {
   fi
   touch "$gdir/cancelled-${backup_id}"
   if command -v systemctl >/dev/null 2>&1; then
-    systemctl stop "srv-tune-guard-${backup_id}.timer" >/dev/null 2>&1 || true
+    systemctl stop "temper-guard-${backup_id}.timer" >/dev/null 2>&1 || true
   fi
   printf 'guard %s confirmed and cancelled\n' "$backup_id"
 }

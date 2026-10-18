@@ -7,9 +7,9 @@
 # shellcheck shell=bash
 
 firewall_tool() {
-  # SRV_TUNE_FIREWALL_TOOL overrides auto-detect (tests force the tool).
-  if [[ -n "${SRV_TUNE_FIREWALL_TOOL:-}" ]]; then
-    printf '%s\n' "$SRV_TUNE_FIREWALL_TOOL"
+  # TEMPER_FIREWALL_TOOL overrides auto-detect (tests force the tool).
+  if [[ -n "${TEMPER_FIREWALL_TOOL:-}" ]]; then
+    printf '%s\n' "$TEMPER_FIREWALL_TOOL"
     return 0
   fi
   if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi 'active'; then
@@ -26,7 +26,7 @@ firewall_tool() {
 }
 
 firewall_ssh_port() {
-  printf '%s\n' "${SRV_TUNE_SSH_PORT:-22}"
+  printf '%s\n' "${TEMPER_SSH_PORT:-22}"
 }
 
 firewall_session_src() {
@@ -39,7 +39,7 @@ firewall_session_src() {
 }
 
 firewall_is_live() {
-  [[ "${SRV_TUNE_TEST:-0}" != "1" && "${SRV_TUNE_SYSROOT:-/}" == "/" ]]
+  [[ "${TEMPER_TEST:-0}" != "1" && "${TEMPER_SYSROOT:-/}" == "/" ]]
 }
 
 firewall_detect() {
@@ -63,8 +63,8 @@ firewall_recommend() {
 firewall_allow_port() {
   local port="$1" backup_dir="${2:-}" tool state
   tool="$(firewall_tool)"
-  state="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
-  if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+  state="${TEMPER_STATE_DIR:-/var/lib/temper}"
+  if [[ "${TEMPER_DRY_RUN:-0}" == "1" ]]; then
     printf 'dry-run: firewall allow %s/tcp (why: port first, nothing executed)\n' "$port"
     return 0
   fi
@@ -109,7 +109,7 @@ firewall_allow_port() {
 # firewall_nft_ports - pending ports plus ssh port, one per line, deduped.
 firewall_nft_ports() {
   local state ports p
-  state="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
+  state="${TEMPER_STATE_DIR:-/var/lib/temper}"
   ports="$(firewall_ssh_port)"
   if [[ -f "$state/fw-pending-ports.log" ]]; then
     while IFS= read -r p; do
@@ -143,8 +143,8 @@ firewall_render_nft() {
     ;;
   esac
   {
-    printf '# srv-tune nftables (why: atomic file, validated with nft -c)\n'
-    printf 'table inet srv_tune {\n'
+    printf '# temper nftables (why: atomic file, validated with nft -c)\n'
+    printf 'table inet temper {\n'
     printf '  chain input {\n'
     printf '    type filter hook input priority 0; policy drop;\n'
     printf '    ct state established,related accept\n'
@@ -160,9 +160,9 @@ firewall_render_nft() {
 firewall_rollback_live() {
   # Safe anywhere: deletes only our own table / our own added rules.
   local id="${1:-}" base dir p
-  base="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
+  base="${TEMPER_STATE_DIR:-/var/lib/temper}"
   if command -v nft >/dev/null 2>&1; then
-    nft delete table inet srv_tune >/dev/null 2>&1 || true
+    nft delete table inet temper >/dev/null 2>&1 || true
   fi
   if [[ -n "$id" ]]; then
     dir="$base/backups/$id"
@@ -236,7 +236,7 @@ firewall_apply() {
   tool="$(firewall_tool)"
   case "$tool" in
   ufw | ufw-inactive)
-    if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${TEMPER_DRY_RUN:-0}" == "1" ]]; then
       printf 'dry-run: ufw allow %s/tcp then enable (why: port first)\n' "$(firewall_ssh_port)"
       return 0
     fi
@@ -245,13 +245,13 @@ firewall_apply() {
       firewall_allow_port 22 "$backup_dir" || return 1
     fi
     local guard_id=""
-    if [[ "${SRV_TUNE_NO_GUARD:-0}" != "1" && "${SRV_TUNE_TEST:-0}" != "1" ]]; then
-      guard_id="$(guard_start "$(basename "$backup_dir")" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
-      printf 'guard %s armed: confirm with srv-tune confirm %s\n' "$guard_id" "$guard_id"
+    if [[ "${TEMPER_NO_GUARD:-0}" != "1" && "${TEMPER_TEST:-0}" != "1" ]]; then
+      guard_id="$(guard_start "$(basename "$backup_dir")" "${TEMPER_GUARD_TIMEOUT:-300}")"
+      printf 'guard %s armed: confirm with temper confirm %s\n' "$guard_id" "$guard_id"
     fi
     firewall_ensure_ufw_ipv6 "$backup_dir" || return 1
     if ! firewall_is_live; then
-      printf 'enable\n' >>"${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}/fw-intent.log"
+      printf 'enable\n' >>"${TEMPER_STATE_DIR:-/var/lib/temper}/fw-intent.log"
       printf 'note: sandboxed, ufw enable skipped\n'
       return 0
     fi
@@ -259,7 +259,7 @@ firewall_apply() {
       printf 'error: ufw enable failed\n' >&2
       return 1
     fi
-    printf 'verify with a NEW session, then run: srv-tune confirm %s\n' "$guard_id"
+    printf 'verify with a NEW session, then run: temper confirm %s\n' "$guard_id"
     ;;
   nftables)
     local tmp
@@ -268,12 +268,12 @@ firewall_apply() {
       rm -f "$tmp"
       return 1
     fi
-    if ! apply_file "$backup_dir" "$(sys_p /etc/nftables.d/00-srv-tune.nft)" "$tmp" "nftables base set"; then
+    if ! apply_file "$backup_dir" "$(sys_p /etc/nftables.d/00-temper.nft)" "$tmp" "nftables base set"; then
       rm -f "$tmp"
       return 1
     fi
     rm -f "$tmp"
-    if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${TEMPER_DRY_RUN:-0}" == "1" ]]; then
       return 0
     fi
     if ! firewall_is_live; then
@@ -281,12 +281,12 @@ firewall_apply() {
       return 0
     fi
     local guard_id=""
-    if [[ "${SRV_TUNE_NO_GUARD:-0}" != "1" && "${SRV_TUNE_TEST:-0}" != "1" ]]; then
-      guard_id="$(guard_start "$(basename "$backup_dir")" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
-      printf 'guard %s armed: confirm with srv-tune confirm %s\n' "$guard_id" "$guard_id"
+    if [[ "${TEMPER_NO_GUARD:-0}" != "1" && "${TEMPER_TEST:-0}" != "1" ]]; then
+      guard_id="$(guard_start "$(basename "$backup_dir")" "${TEMPER_GUARD_TIMEOUT:-300}")"
+      printf 'guard %s armed: confirm with temper confirm %s\n' "$guard_id" "$guard_id"
     fi
-    firewall_ensure_nft "$(sys_p /etc/nftables.d/00-srv-tune.nft)" || return 1
-    printf 'note: load this file at boot (nft -f in local process); verify, then: srv-tune confirm %s\n' "$guard_id"
+    firewall_ensure_nft "$(sys_p /etc/nftables.d/00-temper.nft)" || return 1
+    printf 'note: load this file at boot (nft -f in local process); verify, then: temper confirm %s\n' "$guard_id"
     ;;
   *)
     printf 'skip: firewall tool is %s (ufw/nftables only; iptables managed manually)\n' "$tool"
@@ -311,14 +311,14 @@ firewall_verify() {
     ;;
   nftables)
     if ! firewall_is_live; then
-      [[ -f "$(sys_p /etc/nftables.d/00-srv-tune.nft)" ]] || {
+      [[ -f "$(sys_p /etc/nftables.d/00-temper.nft)" ]] || {
         printf 'error: nft drop-in missing\n' >&2
         return 1
       }
       return 0
     fi
-    nft list ruleset 2>/dev/null | grep -q 'srv_tune' || {
-      printf 'error: srv_tune table not loaded\n' >&2
+    nft list ruleset 2>/dev/null | grep -q 'temper' || {
+      printf 'error: temper table not loaded\n' >&2
       return 1
     }
     ;;

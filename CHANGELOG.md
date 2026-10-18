@@ -2,6 +2,14 @@
 
 All notable changes, newest first. Format: Conventional Commits subjects.
 
+## Unreleased
+
+- Renamed the project to **Temper**: command, env vars (`TEMPER_*`), state dir
+  (`/var/lib/temper`), sshd drop-ins (`00-temper*.conf`), release assets, and the
+  GitHub repository. No compatibility alias: on hosts that ran the old name, the
+  old drop-ins (`00-srv-tune*.conf`) and the old state tree (`/var/lib/srv-tune`)
+  are orphans — remove them by hand.
+
 ## v0.4.0 (2026-10-19)
 
 - Tunnel UI: `sudo srv-tune tunnel` interactive menu (status, keys,

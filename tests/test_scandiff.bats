@@ -7,9 +7,9 @@ load bats_helper
 
 @test "diff: parses the flat scanner JSON into key/value pairs" {
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/scanner/diff.sh"
-  printf '{"A":"1","B":"x y","C":"a,b","D":"https://e:8/f"}\n' >"$SRV_TUNE_TMP/base.json"
-  run scan_diff_parse_json "$SRV_TUNE_TMP/base.json"
+  source "$TEMPER_ROOT/scanner/diff.sh"
+  printf '{"A":"1","B":"x y","C":"a,b","D":"https://e:8/f"}\n' >"$TEMPER_TMP/base.json"
+  run scan_diff_parse_json "$TEMPER_TMP/base.json"
   [ "$status" -eq 0 ]
   [[ "$output" == *"A"$'\t'"1"* ]]
   [[ "$output" == *"B"$'\t'"x y"* ]]
@@ -19,10 +19,10 @@ load bats_helper
 
 @test "diff: reports changed, added and removed keys plus deltas" {
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/scanner/diff.sh"
-  printf '{"OS_ID":"ubuntu","KEEP":"same","GONE":"old","CHANGE":"old","SCORE":"70","PROFILE":"web"}\n' >"$SRV_TUNE_TMP/base.json"
-  printf 'OS_ID=ubuntu\nKEEP=same\nCHANGE=new\nNEW=v\n' >"$SRV_TUNE_TMP/cur.env"
-  run scan_diff_run "$SRV_TUNE_TMP/base.json" "$SRV_TUNE_TMP/cur.env" 78 generic
+  source "$TEMPER_ROOT/scanner/diff.sh"
+  printf '{"OS_ID":"ubuntu","KEEP":"same","GONE":"old","CHANGE":"old","SCORE":"70","PROFILE":"web"}\n' >"$TEMPER_TMP/base.json"
+  printf 'OS_ID=ubuntu\nKEEP=same\nCHANGE=new\nNEW=v\n' >"$TEMPER_TMP/cur.env"
+  run scan_diff_run "$TEMPER_TMP/base.json" "$TEMPER_TMP/cur.env" 78 generic
   [ "$status" -eq 0 ]
   [[ "$output" == *"score:   70 -> 78"* ]]
   [[ "$output" == *"profile: web -> generic"* ]]
@@ -34,10 +34,10 @@ load bats_helper
 
 @test "diff: identical scan reports no changes" {
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/scanner/diff.sh"
-  printf '{"OS_ID":"ubuntu","KEEP":"same","SCORE":"70","PROFILE":"web"}\n' >"$SRV_TUNE_TMP/base.json"
-  printf 'OS_ID=ubuntu\nKEEP=same\n' >"$SRV_TUNE_TMP/cur.env"
-  run scan_diff_run "$SRV_TUNE_TMP/base.json" "$SRV_TUNE_TMP/cur.env" 70 web
+  source "$TEMPER_ROOT/scanner/diff.sh"
+  printf '{"OS_ID":"ubuntu","KEEP":"same","SCORE":"70","PROFILE":"web"}\n' >"$TEMPER_TMP/base.json"
+  printf 'OS_ID=ubuntu\nKEEP=same\n' >"$TEMPER_TMP/cur.env"
+  run scan_diff_run "$TEMPER_TMP/base.json" "$TEMPER_TMP/cur.env" 70 web
   [ "$status" -eq 0 ]
   [[ "$output" == *"score:   70 (unchanged)"* ]]
   [[ "$output" == *"profile: web (unchanged)"* ]]
@@ -46,27 +46,27 @@ load bats_helper
 
 @test "diff: missing baseline exits 2" {
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/scanner/diff.sh"
-  printf 'OS_ID=ubuntu\n' >"$SRV_TUNE_TMP/cur.env"
-  run scan_diff_run "$SRV_TUNE_TMP/nope.json" "$SRV_TUNE_TMP/cur.env" 1 generic
+  source "$TEMPER_ROOT/scanner/diff.sh"
+  printf 'OS_ID=ubuntu\n' >"$TEMPER_TMP/cur.env"
+  run scan_diff_run "$TEMPER_TMP/nope.json" "$TEMPER_TMP/cur.env" 1 generic
   [ "$status" -eq 2 ]
   [[ "$output" == *"baseline not found"* ]]
 }
 
 @test "diff: non-flat baseline exits 2" {
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/scanner/diff.sh"
-  printf '{"nested":{"a":1}}\n' >"$SRV_TUNE_TMP/base.json"
-  printf 'OS_ID=ubuntu\n' >"$SRV_TUNE_TMP/cur.env"
-  run scan_diff_run "$SRV_TUNE_TMP/base.json" "$SRV_TUNE_TMP/cur.env" 1 generic
+  source "$TEMPER_ROOT/scanner/diff.sh"
+  printf '{"nested":{"a":1}}\n' >"$TEMPER_TMP/base.json"
+  printf 'OS_ID=ubuntu\n' >"$TEMPER_TMP/cur.env"
+  run scan_diff_run "$TEMPER_TMP/base.json" "$TEMPER_TMP/cur.env" 1 generic
   [ "$status" -eq 2 ]
   [[ "$output" == *"no KEY/VALUE pairs"* ]]
 }
 
 @test "optimizer scan --diff end-to-end" {
-  run bash "$SRV_TUNE_ROOT/optimizer.sh" scan --json "$SRV_TUNE_TMP/base.json"
+  run bash "$TEMPER_ROOT/optimizer.sh" scan --json "$TEMPER_TMP/base.json"
   [ "$status" -eq 0 ]
-  run bash "$SRV_TUNE_ROOT/optimizer.sh" scan --diff "$SRV_TUNE_TMP/base.json"
+  run bash "$TEMPER_ROOT/optimizer.sh" scan --diff "$TEMPER_TMP/base.json"
   [ "$status" -eq 0 ]
   [[ "$output" == *"scan diff:"* ]]
   [[ "$output" == *"score:"* ]]
@@ -74,7 +74,7 @@ load bats_helper
 }
 
 @test "optimizer scan --diff without a file exits 2" {
-  run bash "$SRV_TUNE_ROOT/optimizer.sh" scan --diff
+  run bash "$TEMPER_ROOT/optimizer.sh" scan --diff
   [ "$status" -eq 2 ]
   [[ "$output" == *"--diff needs"* ]]
 }

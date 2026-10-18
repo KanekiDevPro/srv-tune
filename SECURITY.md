@@ -11,7 +11,7 @@ within 7 days.
 
 ## Scope notes
 
-- srv-tune only writes drop-in configs under testable paths, backs up
+- temper only writes drop-in configs under testable paths, backs up
   everything first, and never exfiltrates data (no telemetry by design).
 - The EXPERIMENTAL modules (ssh/firewall/fail2ban) require explicit flags
   plus typed confirmation plus NEW-session confirm for exactly this reason.
@@ -20,9 +20,9 @@ within 7 days.
 
 ## Tunnel web panel
 
-`sudo srv-tune tunnel web` runs a small Python-stdlib HTTP server as root
+`sudo temper tunnel web` runs a small Python-stdlib HTTP server as root
 on `127.0.0.1:8787` by default. It authenticates with a one-shot token URL
-(token file `/var/lib/srv-tune/web/token`, mode 600) that sets an HttpOnly
+(token file `/var/lib/temper/web/token`, mode 600) that sets an HttpOnly
 `SameSite=Strict` cookie; every mutation is POST with a CSRF value, and
 five failed logins per IP per minute return 429. The panel shows status,
 sessions and keys and can add/remove tunnel keys — it does **not** edit

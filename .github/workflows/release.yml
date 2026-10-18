@@ -51,17 +51,17 @@ jobs:
             TREE="HEAD"
           fi
           test -f VERSION
-          git archive --format=tar.gz --prefix="srv-tune-${TAG}/" -o "srv-tune-${TAG}.tar.gz" "${TREE}"
-          (cd "$(pwd)" && sha256sum "srv-tune-${TAG}.tar.gz" > sha256sums.txt)
+          git archive --format=tar.gz --prefix="temper-${TAG}/" -o "temper-${TAG}.tar.gz" "${TREE}"
+          (cd "$(pwd)" && sha256sum "temper-${TAG}.tar.gz" > sha256sums.txt)
           cat sha256sums.txt
-          test -s "srv-tune-${TAG}.tar.gz"
+          test -s "temper-${TAG}.tar.gz"
       - name: Upload dry-run artifacts
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: srv-tune-dry-run
+          name: temper-dry-run
           path: |
-            srv-tune-dry-run-*.tar.gz
+            temper-dry-run-*.tar.gz
             sha256sums.txt
       - name: Create DRAFT release with assets
         # Real releases only: never runs on workflow_dispatch.
@@ -71,6 +71,6 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
-          gh release create "${TAG}" --draft --title "srv-tune ${TAG}" \
+          gh release create "${TAG}" --draft --title "temper ${TAG}" \
             --notes "Draft release. Verify sha256sums.txt, then publish. Install: ./install.sh --tag ${TAG} --sha256 <sum> --yes" \
-            "srv-tune-${TAG}.tar.gz" sha256sums.txt
+            "temper-${TAG}.tar.gz" sha256sums.txt

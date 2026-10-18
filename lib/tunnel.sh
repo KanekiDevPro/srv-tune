@@ -4,10 +4,10 @@
 # drop-in. The TUI and the web panel both call these functions.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_TUNNEL_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_TUNNEL_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_TUNNEL_SOURCED=1
+__TEMPER_TUNNEL_SOURCED=1
 
 # shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/modules.sh"
@@ -25,12 +25,12 @@ source "$(dirname "${BASH_SOURCE[0]}")/i18n.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/ui.sh"
 
 tunnel_usage() {
-  printf 'usage: srv-tune tunnel [status [--json]]\n'
-  printf '       srv-tune tunnel keys list|add|remove\n'
-  printf '       srv-tune tunnel access show|set\n'
-  printf '       srv-tune tunnel sessions [--json]\n'
-  printf '       srv-tune tunnel web [--port N] [--bind ADDR]\n'
-  printf '       srv-tune tunnel            (interactive TUI; no tty: status)\n'
+  printf 'usage: temper tunnel [status [--json]]\n'
+  printf '       temper tunnel keys list|add|remove\n'
+  printf '       temper tunnel access show|set\n'
+  printf '       temper tunnel sessions [--json]\n'
+  printf '       temper tunnel web [--port N] [--bind ADDR]\n'
+  printf '       temper tunnel            (interactive TUI; no tty: status)\n'
 }
 
 # tunnel_dropin - applied ssh drop-in path (sources the ssh module once).
@@ -94,7 +94,7 @@ tunnel_port() {
 tunnel_user() {
   local u
   u="$(tunnel_dropin_value Match User 2>/dev/null || true)"
-  [[ -n "$u" ]] || u="${SRV_TUNE_TUNNEL_USER:-tunnel}"
+  [[ -n "$u" ]] || u="${TEMPER_TUNNEL_USER:-tunnel}"
   printf '%s\n' "$u"
 }
 
@@ -125,7 +125,7 @@ tunnel_permit_tunnel() {
 
 tunnel_ip_forward() {
   local f
-  f="$(sys_p /etc/sysctl.d/00-srv-tune-tun.conf)"
+  f="$(sys_p /etc/sysctl.d/00-temper-tun.conf)"
   if [[ -f "$f" ]] && grep -q '^net.ipv4.ip_forward=1$' "$f" 2>/dev/null; then
     printf 'yes\n'
   else
@@ -135,8 +135,8 @@ tunnel_ip_forward() {
 
 # tunnel_sessions_parse - ESTAB rows on any ssh Port: peer<TAB>pid per line.
 tunnel_sessions_parse() {
-  local bin="${SRV_TUNE_SS_BIN:-ss}" p re=""
-  if [[ -z "${SRV_TUNE_SS_BIN:-}" ]] && ! command -v ss >/dev/null 2>&1; then
+  local bin="${TEMPER_SS_BIN:-ss}" p re=""
+  if [[ -z "${TEMPER_SS_BIN:-}" ]] && ! command -v ss >/dev/null 2>&1; then
     printf 'error: ss not found (iproute2); sessions unavailable\n' >&2
     return 2
   fi
@@ -245,7 +245,7 @@ tunnel_cmd_status() {
 }
 
 tunnel_require_root() {
-  if [[ "${SRV_TUNE_TEST:-0}" == "1" ]]; then
+  if [[ "${TEMPER_TEST:-0}" == "1" ]]; then
     # TEST-only bypass: CI unit tests run unprivileged against SYSROOT.
     return 0
   fi
@@ -256,8 +256,8 @@ tunnel_require_root() {
 }
 
 tunnel_home() {
-  if [[ -n "${SRV_TUNE_TUNNEL_HOME:-}" ]]; then
-    printf '%s\n' "$SRV_TUNE_TUNNEL_HOME"
+  if [[ -n "${TEMPER_TUNNEL_HOME:-}" ]]; then
+    printf '%s\n' "$TEMPER_TUNNEL_HOME"
     return 0
   fi
   local u home
@@ -329,8 +329,8 @@ tunnel_audit() {
   state="$(state_effective_dir 2>/dev/null || true)"
   [[ -n "$state" ]] || return 0
   log="$state/tunnel-actions.log"
-  actor="${SRV_TUNE_ACTOR:-cli}"
-  src="${SRV_TUNE_SRC:-}"
+  actor="${TEMPER_ACTOR:-cli}"
+  src="${TEMPER_SRC:-}"
   if [[ -z "$src" ]]; then
     src="$(tty 2>/dev/null || true)"
     [[ -n "$src" ]] || src="cli"
@@ -733,22 +733,22 @@ tunnel_access_set() {
   # Our own typed confirm replaces the module's second gate for this one
   # explicit edit; the guard below is untouched. The knobs live in a
   # subshell: the TUI calls this from a long-lived shell, and a leaked
-  # SRV_TUNE_ASSUME_YES would auto-accept every later prompt.
+  # TEMPER_ASSUME_YES would auto-accept every later prompt.
   (
-    export SRV_TUNE_ASSUME_YES=1
-    export SRV_TUNE_SSH_MODE=TUNNEL
-    export SRV_TUNE_TUNNEL_USER="$user"
-    export SRV_TUNE_SSH_PORT="$port"
-    export SRV_TUNE_PERMIT_OPEN="$permit_open"
-    export SRV_TUNE_TUNNEL_GATEWAY=0
-    [[ "$gateway" == "yes" ]] && export SRV_TUNE_TUNNEL_GATEWAY=1
+    export TEMPER_ASSUME_YES=1
+    export TEMPER_SSH_MODE=TUNNEL
+    export TEMPER_TUNNEL_USER="$user"
+    export TEMPER_SSH_PORT="$port"
+    export TEMPER_PERMIT_OPEN="$permit_open"
+    export TEMPER_TUNNEL_GATEWAY=0
+    [[ "$gateway" == "yes" ]] && export TEMPER_TUNNEL_GATEWAY=1
     if [[ "$tun" == "1" ]]; then
-      export SRV_TUNE_TUNNEL_MODE=tun
+      export TEMPER_TUNNEL_MODE=tun
     else
-      unset SRV_TUNE_TUNNEL_MODE
+      unset TEMPER_TUNNEL_MODE
     fi
-    export SRV_TUNE_WITH_SSH=1
-    export SRV_TUNE_PROFILE=vpn-tunnel
+    export TEMPER_WITH_SSH=1
+    export TEMPER_PROFILE=vpn-tunnel
     lock_acquire || exit 1
     rc=0
     run_apply vpn-tunnel ssh || rc=$?
@@ -773,7 +773,7 @@ tunnel_cmd_web() {
     printf 'error: python3 not found; the web panel needs python3 (the TUI works without it)\n' >&2
     return 2
   }
-  local port="${SRV_TUNE_TUNNEL_WEB_PORT:-8787}" bind="127.0.0.1"
+  local port="${TEMPER_TUNNEL_WEB_PORT:-8787}" bind="127.0.0.1"
   while [[ $# -gt 0 ]]; do
     case "$1" in
     --port)
@@ -798,17 +798,17 @@ tunnel_cmd_web() {
   state="$(state_effective_dir)" || return 1
   mkdir -p "$state/web" || return 1
   chmod 700 "$state/web" 2>/dev/null || true
-  bin="${SRV_TUNE_BIN:-}"
+  bin="${TEMPER_BIN:-}"
   if [[ -z "$bin" ]]; then
-    if command -v srv-tune >/dev/null 2>&1; then
-      bin="srv-tune"
+    if command -v temper >/dev/null 2>&1; then
+      bin="temper"
     else
-      bin="$SRV_TUNE_ROOT/optimizer.sh"
+      bin="$TEMPER_ROOT/optimizer.sh"
     fi
   fi
-  python3 "$SRV_TUNE_ROOT/web/tunnel_web.py" \
+  python3 "$TEMPER_ROOT/web/tunnel_web.py" \
     --port "$port" --bind "$bind" --state-dir "$state" \
-    --bin "$bin" --lang "$(srv_tune_lang)"
+    --bin "$bin" --lang "$(temper_lang)"
 }
 
 tunnel_tui() {
@@ -848,14 +848,14 @@ tunnel_tui_keys() {
       tmp="$(mktemp)" || return 1
       printf '%s\n' "$line" >"$tmp"
       rc=0
-      SRV_TUNE_ACTOR=tui tunnel_keys_add --file "$tmp" || rc=$?
+      TEMPER_ACTOR=tui tunnel_keys_add --file "$tmp" || rc=$?
       rm -f "$tmp"
       ;;
     remove)
       tunnel_keys_list
       printf 'fingerprint to remove (SHA256:...): '
       IFS= read -r line || return 0
-      SRV_TUNE_ACTOR=tui tunnel_keys_remove --fp "$line" || rc=$?
+      TEMPER_ACTOR=tui tunnel_keys_remove --fp "$line" || rc=$?
       ;;
     esac
   done
@@ -881,7 +881,7 @@ tunnel_tui_access() {
     printf '%s\n' "$(t aborted)"
     return 0
   }
-  SRV_TUNE_ACTOR=tui tunnel_access_set --permit-open "$po" --gateway-ports "$gw" --yes
+  TEMPER_ACTOR=tui tunnel_access_set --permit-open "$po" --gateway-ports "$gw" --yes
   return 0
 }
 

@@ -16,17 +16,17 @@ if ! command -v systemd-run >/dev/null 2>&1 || [[ ! -d /run/systemd/system ]]; t
 fi
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-export SRV_TUNE_STATE_DIR
-SRV_TUNE_STATE_DIR="$(mktemp -d /tmp/srv-guard-int-XXXXXX)"
-export SRV_TUNE_TEST=1
+export TEMPER_STATE_DIR
+TEMPER_STATE_DIR="$(mktemp -d /tmp/srv-guard-int-XXXXXX)"
+export TEMPER_TEST=1
 # Real backend (not the nohup fallback, not stubs).
-unset SRV_TUNE_GUARD_BACKEND
+unset TEMPER_GUARD_BACKEND
 
 cleanup() {
-  systemctl stop 'srv-tune-guard-g1.timer' >/dev/null 2>&1 || true
-  systemctl stop 'srv-tune-guard-g2.timer' >/dev/null 2>&1 || true
-  systemctl stop 'srv-tune-guard-g3.timer' >/dev/null 2>&1 || true
-  rm -rf "${SRV_TUNE_STATE_DIR:-/nonexistent-srv-tune-state}" 2>/dev/null || true
+  systemctl stop 'temper-guard-g1.timer' >/dev/null 2>&1 || true
+  systemctl stop 'temper-guard-g2.timer' >/dev/null 2>&1 || true
+  systemctl stop 'temper-guard-g3.timer' >/dev/null 2>&1 || true
+  rm -rf "${TEMPER_STATE_DIR:-/nonexistent-temper-state}" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -36,8 +36,8 @@ source "$ROOT/lib/ssh-guard.sh"
 mkcase() {
   # mkcase <id> : broken canary + manifest with the original.
   local id="$1"
-  local target="$SRV_TUNE_STATE_DIR/$id-canary.conf"
-  local snap="$SRV_TUNE_STATE_DIR/backups/$id"
+  local target="$TEMPER_STATE_DIR/$id-canary.conf"
+  local snap="$TEMPER_STATE_DIR/backups/$id"
   mkdir -p "$snap"
   printf 'original\n' >"$target"
   cp "$target" "$snap/canary.conf"
@@ -62,20 +62,20 @@ wait_for() {
 
 printf '=== 1. schedule revert, kill -9 the parent, revert must fire ===\n'
 t1="$(mkcase g1)"
-SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export SRV_TUNE_STATE_DIR='$SRV_TUNE_STATE_DIR'; guard_start g1 12 >/dev/null; sleep 20" &
+SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export TEMPER_STATE_DIR='$TEMPER_STATE_DIR'; guard_start g1 12 >/dev/null; sleep 20" &
 parent=$!
-wait_for 10 test -f "$SRV_TUNE_STATE_DIR/guard/origin-g1.tty"
+wait_for 10 test -f "$TEMPER_STATE_DIR/guard/origin-g1.tty"
 timer_scheduled() {
-  systemctl list-timers 'srv-tune-guard-g1.timer' 2>/dev/null | grep -q 'srv-tune-guard-g1'
+  systemctl list-timers 'temper-guard-g1.timer' 2>/dev/null | grep -q 'temper-guard-g1'
 }
 # guard_start writes origin-g1.tty before systemd-run returns; poll so this
 # probe cannot outrun scheduling on a loaded runner (flake seen in CI).
 wait_for 10 timer_scheduled || {
   printf 'FAIL: transient timer not scheduled\n' >&2
   printf '--- systemd-run error (if any) ---\n' >&2
-  cat "$SRV_TUNE_STATE_DIR/guard/systemd-run.err" >&2 || true
+  cat "$TEMPER_STATE_DIR/guard/systemd-run.err" >&2 || true
   printf '--- timer status ---\n' >&2
-  systemctl status 'srv-tune-guard-g1.timer' >&2 || true
+  systemctl status 'temper-guard-g1.timer' >&2 || true
   systemctl --version | head -n 1 >&2 || true
   exit 1
 }
@@ -93,15 +93,15 @@ printf 'PASS: revert fired with no parent alive\n'
 
 printf '=== 2. NEW-session confirm cancels ===\n'
 t2="$(mkcase g2)"
-SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export SRV_TUNE_STATE_DIR='$SRV_TUNE_STATE_DIR'; guard_start g2 8 >/dev/null"
+SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export TEMPER_STATE_DIR='$TEMPER_STATE_DIR'; guard_start g2 8 >/dev/null"
 # Session-start detection resolves in whole seconds; on a loaded runner the
 # confirm shell can measure as OLDER than apply and be rejected (flake seen
 # in CI). A real operator confirms seconds later — wait so the new session
 # is unambiguously newer.
 sleep 2
-SSH_TTY=/dev/pts/91 bash -c "source '$ROOT/lib/ssh-guard.sh'; export SRV_TUNE_STATE_DIR='$SRV_TUNE_STATE_DIR'; guard_confirm g2"
-test -f "$SRV_TUNE_STATE_DIR/guard/cancelled-g2"
-if systemctl list-timers 'srv-tune-guard-g2.timer' 2>/dev/null | grep -q 'srv-tune-guard-g2'; then
+SSH_TTY=/dev/pts/91 bash -c "source '$ROOT/lib/ssh-guard.sh'; export TEMPER_STATE_DIR='$TEMPER_STATE_DIR'; guard_confirm g2"
+test -f "$TEMPER_STATE_DIR/guard/cancelled-g2"
+if systemctl list-timers 'temper-guard-g2.timer' 2>/dev/null | grep -q 'temper-guard-g2'; then
   printf 'FAIL: timer still active after confirm\n' >&2
   exit 1
 fi
@@ -115,13 +115,13 @@ printf 'PASS: new-session confirm cancelled the timer\n'
 
 printf '=== 3. SAME-session confirm is rejected ===\n'
 mkcase g3 >/dev/null
-SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export SRV_TUNE_STATE_DIR='$SRV_TUNE_STATE_DIR'; guard_start g3 30 >/dev/null"
-if SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export SRV_TUNE_STATE_DIR='$SRV_TUNE_STATE_DIR'; guard_confirm g3" 2>/dev/null; then
+SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export TEMPER_STATE_DIR='$TEMPER_STATE_DIR'; guard_start g3 30 >/dev/null"
+if SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export TEMPER_STATE_DIR='$TEMPER_STATE_DIR'; guard_confirm g3" 2>/dev/null; then
   printf 'FAIL: same-session confirm accepted\n' >&2
   exit 1
 fi
-test ! -f "$SRV_TUNE_STATE_DIR/guard/cancelled-g3"
-SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export SRV_TUNE_STATE_DIR='$SRV_TUNE_STATE_DIR'; guard_confirm g3 1 >/dev/null"
+test ! -f "$TEMPER_STATE_DIR/guard/cancelled-g3"
+SSH_TTY=/dev/pts/90 bash -c "source '$ROOT/lib/ssh-guard.sh'; export TEMPER_STATE_DIR='$TEMPER_STATE_DIR'; guard_confirm g3 1 >/dev/null"
 printf 'PASS: same-session confirm rejected (force works for cleanup)\n'
 
 printf 'ALL GUARD-SYSTEMD CHECKS PASSED\n'

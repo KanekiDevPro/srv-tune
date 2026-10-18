@@ -22,7 +22,7 @@ kernel_swappiness() {
 # kernel_journal_cap - 10% of free disk on the state fs, clamped 100M..4G.
 kernel_journal_cap() {
   local free_kb cap_kb
-  free_kb="$(df -k "${SRV_TUNE_SYSROOT:-/}" 2>/dev/null | awk 'NR==2{print $4}' || true)"
+  free_kb="$(df -k "${TEMPER_SYSROOT:-/}" 2>/dev/null | awk 'NR==2{print $4}' || true)"
   [[ "$free_kb" =~ ^[0-9]+$ ]] || free_kb=1048576
   cap_kb=$((free_kb / 10))
   if [[ "$cap_kb" -lt 102400 ]]; then cap_kb=102400; fi
@@ -150,17 +150,17 @@ kernel_apply() {
   source "$(dirname "${BASH_SOURCE[0]}")/../lib/dryrun.sh"
   tmp="$(mktemp)"
   {
-    printf '# srv-tune kernel (why: computed, see recommend)\nvm.swappiness=%s\n' "$(kernel_swappiness)"
+    printf '# temper kernel (why: computed, see recommend)\nvm.swappiness=%s\n' "$(kernel_swappiness)"
   } >"$tmp"
-  apply_file "$backup_dir" "$(sys_p /etc/sysctl.d/00-srv-tune.conf)" "$tmp" "server swappiness" || return 1
+  apply_file "$backup_dir" "$(sys_p /etc/sysctl.d/00-temper.conf)" "$tmp" "server swappiness" || return 1
   tmp="$(mktemp)"
   {
-    printf '# srv-tune journald cap\n[Journal]\nSystemMaxUse=%s\n' "$(kernel_journal_cap)"
+    printf '# temper journald cap\n[Journal]\nSystemMaxUse=%s\n' "$(kernel_journal_cap)"
   } >"$tmp"
-  apply_file "$backup_dir" "$(sys_p /etc/systemd/journald.conf.d/00-srv-tune.conf)" "$tmp" "journald cap" || return 1
+  apply_file "$backup_dir" "$(sys_p /etc/systemd/journald.conf.d/00-temper.conf)" "$tmp" "journald cap" || return 1
   tmp="$(mktemp)"
   if [[ "$(kernel_scheduler_rules "$tmp")" -gt 0 ]]; then
-    apply_file "$backup_dir" "$(sys_p /etc/udev/rules.d/60-srv-tune-scheduler.rules)" "$tmp" "scheduler by disk type" || return 1
+    apply_file "$backup_dir" "$(sys_p /etc/udev/rules.d/60-temper-scheduler.rules)" "$tmp" "scheduler by disk type" || return 1
   else
     printf 'note: no suitable disks for a scheduler rule\n'
     rm -f "$tmp"
@@ -168,7 +168,7 @@ kernel_apply() {
   if kernel_zram_ok; then
     tmp="$(mktemp)"
     {
-      printf '# srv-tune zram (low RAM, tooling present)\n[zram0]\nzram-size = min(ram, 4096)\n'
+      printf '# temper zram (low RAM, tooling present)\n[zram0]\nzram-size = min(ram, 4096)\n'
     } >"$tmp"
     apply_file "$backup_dir" "$(sys_p /etc/systemd/zram-generator.conf)" "$tmp" "zram on low RAM" || return 1
   else
@@ -179,8 +179,8 @@ kernel_apply() {
   if [[ "$daemon" == "chrony" ]]; then
     # makestep only: initial-sync fix, never touches sources (NTS preserved).
     tmp="$(mktemp)"
-    printf '# srv-tune chrony: initial step only; sources/NTS untouched\nmakestep 1 -1\n' >"$tmp"
-    apply_file "$backup_dir" "$(sys_p /etc/chrony/conf.d/00-srv-tune-makestep.conf)" "$tmp" "chrony makestep" || return 1
+    printf '# temper chrony: initial step only; sources/NTS untouched\nmakestep 1 -1\n' >"$tmp"
+    apply_file "$backup_dir" "$(sys_p /etc/chrony/conf.d/00-temper-makestep.conf)" "$tmp" "chrony makestep" || return 1
   else
     printf 'note: time daemon is %s, nothing to configure (timesyncd uses vendor defaults; containers skipped)\n' "$daemon"
   fi
@@ -189,7 +189,7 @@ kernel_apply() {
 
 kernel_verify() {
   local f
-  f="$(sys_p /etc/sysctl.d/00-srv-tune.conf)"
+  f="$(sys_p /etc/sysctl.d/00-temper.conf)"
   if [[ ! -f "$f" ]]; then
     printf 'error: kernel sysctl drop-in missing: %s\n' "$f" >&2
     return 1
@@ -198,7 +198,7 @@ kernel_verify() {
     printf 'error: swappiness line missing in %s\n' "$f" >&2
     return 1
   }
-  f="$(sys_p /etc/systemd/journald.conf.d/00-srv-tune.conf)"
+  f="$(sys_p /etc/systemd/journald.conf.d/00-temper.conf)"
   if [[ ! -f "$f" ]]; then
     printf 'error: journald drop-in missing: %s\n' "$f" >&2
     return 1
@@ -208,7 +208,7 @@ kernel_verify() {
     return 1
   }
   # NTS guard: our chrony drop-in must never carry sources.
-  f="$(sys_p /etc/chrony/conf.d/00-srv-tune-makestep.conf)"
+  f="$(sys_p /etc/chrony/conf.d/00-temper-makestep.conf)"
   if [[ -f "$f" ]]; then
     if grep -Eq '^[[:space:]]*(server|pool|source|nts)' "$f"; then
       printf 'error: chrony drop-in touches sources (NTS rule violated)\n' >&2

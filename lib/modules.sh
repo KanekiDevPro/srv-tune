@@ -6,14 +6,14 @@
 # <m>_verify ; each returns 0 ok, 2 skip (message on stdout), 1 failure.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_MODULES_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_MODULES_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_MODULES_SOURCED=1
+__TEMPER_MODULES_SOURCED=1
 
-# sys_p <abs path> - prepend SRV_TUNE_SYSROOT (tests) for sandboxed apply.
+# sys_p <abs path> - prepend TEMPER_SYSROOT (tests) for sandboxed apply.
 sys_p() {
-  local p="$1" r="${SRV_TUNE_SYSROOT:-/}"
+  local p="$1" r="${TEMPER_SYSROOT:-/}"
   if [[ "$r" == "/" || "$p" != /* ]]; then
     printf '%s\n' "$p"
   else
@@ -21,9 +21,9 @@ sys_p() {
   fi
 }
 
-# proc_p <abs /proc path> - prepend SRV_TUNE_PROCROOT (tests) for fake kernels.
+# proc_p <abs /proc path> - prepend TEMPER_PROCROOT (tests) for fake kernels.
 proc_p() {
-  local p="$1" r="${SRV_TUNE_PROCROOT:-}"
+  local p="$1" r="${TEMPER_PROCROOT:-}"
   if [[ -z "$r" ]]; then
     printf '%s\n' "$p"
   else
@@ -33,7 +33,7 @@ proc_p() {
 
 # module_load <name> - source modules/<name>.sh from the install root.
 module_load() {
-  local m="$1" root="${SRV_TUNE_ROOT:-.}"
+  local m="$1" root="${TEMPER_ROOT:-.}"
   if [[ ! -f "$root/modules/$m.sh" ]]; then
     printf 'error: unknown module: %s\n' "$m" >&2
     return 1
@@ -44,7 +44,7 @@ module_load() {
 
 # profile_file <profile> - resolve the .conf path, validating --config.
 profile_file() {
-  local profile="$1" root="${SRV_TUNE_ROOT:-.}" custom="${SRV_TUNE_CUSTOM_PROFILE:-}"
+  local profile="$1" root="${TEMPER_ROOT:-.}" custom="${TEMPER_CUSTOM_PROFILE:-}"
   if [[ "$profile" == "custom" && -n "$custom" ]]; then
     if [[ ! -f "$custom" ]]; then
       printf 'error: --config file not found: %s\n' "$custom" >&2
@@ -122,14 +122,14 @@ data_entry_tier() {
 
 # data_entry_verified <line> - 0 when the entry may be used. Entries with
 # anything but verified=true are IGNORED unless the test-only override
-# SRV_TUNE_ALLOW_UNVERIFIED=1 is set together with SRV_TUNE_TEST=1.
+# TEMPER_ALLOW_UNVERIFIED=1 is set together with TEMPER_TEST=1.
 # Automation must NEVER set verified=true; only a human flips it after
 # manual review (see docs/DATA-REVIEW.md).
 data_entry_verified() {
   local val
   val="$(data_entry_field "$1" verified)"
   [[ "$val" == "true" ]] && return 0
-  if [[ "${SRV_TUNE_TEST:-0}" == "1" && "${SRV_TUNE_ALLOW_UNVERIFIED:-0}" == "1" ]]; then
+  if [[ "${TEMPER_TEST:-0}" == "1" && "${TEMPER_ALLOW_UNVERIFIED:-0}" == "1" ]]; then
     return 0
   fi
   return 1
@@ -139,8 +139,8 @@ data_entry_verified() {
 # first curated entry, announced loudly (never silent auto-selection).
 registry_pick_url() {
   local list="$1" url="" line cand
-  if [[ -n "${SRV_TUNE_MIRROR_URL:-}" ]]; then
-    url="$SRV_TUNE_MIRROR_URL"
+  if [[ -n "${TEMPER_MIRROR_URL:-}" ]]; then
+    url="$TEMPER_MIRROR_URL"
     printf 'mirror: explicit --mirror %s\n' "$url" >&2
   else
     # First usable curated entry: verified only, official-default origins
@@ -160,7 +160,7 @@ registry_pick_url() {
     done <"$list" 2>/dev/null
   fi
   if [[ -z "$url" ]]; then
-    printf 'error: no verified registry mirror available (see docs/DATA-REVIEW.md; tests only: SRV_TUNE_ALLOW_UNVERIFIED=1 with SRV_TUNE_TEST=1)\n' >&2
+    printf 'error: no verified registry mirror available (see docs/DATA-REVIEW.md; tests only: TEMPER_ALLOW_UNVERIFIED=1 with TEMPER_TEST=1)\n' >&2
     return 1
   fi
   registry_require_https "$url" || return 1
@@ -191,7 +191,7 @@ profile_modules() {
 }
 
 # profile_env <profile> - export profile settings (ssh_mode, ...) as
-# SRV_TUNE_* vars for modules. Only simple KEY=value lines; modules= ignored.
+# TEMPER_* vars for modules. Only simple KEY=value lines; modules= ignored.
 profile_env() {
   local profile="$1" file line k v
   file="$(profile_file "$profile")" || return 1
@@ -206,9 +206,9 @@ profile_env() {
     '' | *[!A-Za-z_]*) continue ;;
     esac
     k="$(printf '%s' "$k" | tr 'a-z' 'A-Z')"
-    export "SRV_TUNE_$k=$v"
+    export "TEMPER_$k=$v"
   done <"$file"
-  export SRV_TUNE_PROFILE="$profile"
+  export TEMPER_PROFILE="$profile"
   return 0
 }
 
@@ -237,7 +237,7 @@ run_apply() {
     for m in $only; do
       m="$(printf '%s' "$m" | tr -d ' ')"
       [[ -z "$m" ]] && continue
-      if [[ ! -f "${SRV_TUNE_ROOT:-.}/modules/$m.sh" ]]; then
+      if [[ ! -f "${TEMPER_ROOT:-.}/modules/$m.sh" ]]; then
         printf 'error: unknown module: %s\n' "$m" >&2
         return 1
       fi
@@ -248,7 +248,7 @@ run_apply() {
     # are skipped with a note; dangerous ones need flags below).
     while IFS= read -r m; do
       [[ -z "$m" ]] && continue
-      if [[ ! -f "${SRV_TUNE_ROOT:-.}/modules/$m.sh" ]]; then
+      if [[ ! -f "${TEMPER_ROOT:-.}/modules/$m.sh" ]]; then
         printf 'skip: module %s is not implemented yet\n' "$m"
         continue
       fi
@@ -259,17 +259,17 @@ run_apply() {
   # --with-ssh / --with-firewall flags are required to enlist.
   local -a final_run=()
   for m in "${to_run[@]}"; do
-    if [[ "$m" == "ssh" && "${SRV_TUNE_WITH_SSH:-0}" != "1" ]]; then
+    if [[ "$m" == "ssh" && "${TEMPER_WITH_SSH:-0}" != "1" ]]; then
       printf 'skip: ssh (%s)\n' "$(t need_with_ssh)"
       gated=$((gated + 1))
       continue
     fi
-    if [[ "$m" == "firewall" || "$m" == "fail2ban" ]] && [[ "${SRV_TUNE_WITH_FIREWALL:-0}" != "1" ]]; then
+    if [[ "$m" == "firewall" || "$m" == "fail2ban" ]] && [[ "${TEMPER_WITH_FIREWALL:-0}" != "1" ]]; then
       printf 'skip: %s (%s)\n' "$m" "$(t need_with_firewall)"
       gated=$((gated + 1))
       continue
     fi
-    if [[ "$m" == "pip_mirror" || "$m" == "npm_mirror" || "$m" == "docker_mirror" ]] && [[ "${SRV_TUNE_WITH_REGISTRY:-0}" != "1" ]]; then
+    if [[ "$m" == "pip_mirror" || "$m" == "npm_mirror" || "$m" == "docker_mirror" ]] && [[ "${TEMPER_WITH_REGISTRY:-0}" != "1" ]]; then
       printf 'skip: %s (%s)\n' "$m" "$(t need_with_registry)"
       gated=$((gated + 1))
       continue
@@ -309,15 +309,15 @@ run_apply() {
     module_load "$m" || return 1
     printf '=== module: %s ===\n' "$m"
     "${m}_recommend" || true
-    if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${TEMPER_DRY_RUN:-0}" == "1" ]]; then
       # Dry-run: show diffs only. No backup, no verify, no rollback, no log.
-      "${m}_apply" "$SRV_TUNE_STATE_DIR/backups/dry-run" || return 1
+      "${m}_apply" "$TEMPER_STATE_DIR/backups/dry-run" || return 1
       printf 'dry-run: %s (no changes made)\n' "$m"
       ran=$((ran + 1))
       continue
     fi
     id="$(new_backup_id)"
-    dir="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}/backups/$id"
+    dir="${TEMPER_STATE_DIR:-/var/lib/temper}/backups/$id"
     mkdir -p "$dir" || return 1
     "${m}_apply" "$dir"
     rc=$?

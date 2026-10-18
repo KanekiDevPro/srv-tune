@@ -3,10 +3,10 @@
 # Small portable utilities. No GNU-only flags.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_UTIL_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_UTIL_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_UTIL_SOURCED=1
+__TEMPER_UTIL_SOURCED=1
 
 is_root() {
   [[ "${EUID:-$(id -u)}" == "0" ]]

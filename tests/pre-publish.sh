@@ -36,7 +36,8 @@ fi
 
 # 3. Author emails: only project, noreply, or GitHub's own merge identity
 # (noreply@github.com signs GitHub-created merges; never rewrite those).
-bad="$(git log --format='%ae %ce' | tr ' ' '\n' | sort -u | grep -Ev '^(srv-tune@local|[^@]+@users\.noreply\.github\.com|noreply@github\.com)$' || true)"
+# srv-tune@local is the pre-rename local identity — permanent history.
+bad="$(git log --format='%ae %ce' | tr ' ' '\n' | sort -u | grep -Ev '^(temper@local|srv-tune@local|[^@]+@users\.noreply\.github\.com|noreply@github\.com)$' || true)"
 if [[ -n "$bad" ]]; then
   say "FAIL: non-allowlisted emails in history: $bad"
   fail=1

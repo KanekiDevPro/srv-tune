@@ -5,6 +5,6 @@
 # shellcheck shell=bash
 set -euo pipefail
 IMG="${1:-24.04}"
-multipass launch "$IMG" --name srv-tune-test --disk 10G --memory 2G
-multipass transfer . srv-tune-test:/tmp/srv-tune
-multipass exec srv-tune-test -- bash /tmp/srv-tune/tests/run-in-vm.sh
+multipass launch "$IMG" --name temper-test --disk 10G --memory 2G
+multipass transfer . temper-test:/tmp/temper
+multipass exec temper-test -- bash /tmp/temper/tests/run-in-vm.sh

@@ -5,7 +5,7 @@
 # shellcheck shell=bash
 set -euo pipefail
 IMG="${1:-ubuntu:24.04}"
-lxc launch "$IMG" srv-tune-test --vm -c limits.memory=2GB
+lxc launch "$IMG" temper-test --vm -c limits.memory=2GB
 sleep 15
-lxc file push -r . srv-tune-test/tmp/srv-tune/
-lxc exec srv-tune-test -- bash /tmp/srv-tune/tests/run-in-vm.sh
+lxc file push -r . temper-test/tmp/temper/
+lxc exec temper-test -- bash /tmp/temper/tests/run-in-vm.sh

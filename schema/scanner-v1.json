@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/KanekiDevPro/srv-tune/schema/scanner-v1.json",
-  "title": "srv-tune scanner output v1",
+  "$id": "https://github.com/KanekiDevPro/temper/schema/scanner-v1.json",
+  "title": "temper scanner output v1",
   "description": "Read-only scan facts plus score and recommended profile. All values are strings; *_KB and SCORE match ^[0-9]+$.",
   "type": "object",
   "required": [

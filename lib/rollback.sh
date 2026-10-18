@@ -5,13 +5,13 @@
 # exit 1 = one or more entries failed (see stderr). Re-running is safe.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_ROLLBACK_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_ROLLBACK_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_ROLLBACK_SOURCED=1
+__TEMPER_ROLLBACK_SOURCED=1
 
 rollback_list() {
-  local base="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
+  local base="${TEMPER_STATE_DIR:-/var/lib/temper}"
   if [[ ! -d "$base/backups" ]]; then
     printf 'no backups\n'
     return 0
@@ -21,7 +21,7 @@ rollback_list() {
 
 rollback_id() {
   local id="$1"
-  local base="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
+  local base="${TEMPER_STATE_DIR:-/var/lib/temper}"
   local dir="$base/backups/$id"
   if [[ -z "$id" ]]; then
     printf 'error: rollback requires an id (see list-backups)\n' >&2

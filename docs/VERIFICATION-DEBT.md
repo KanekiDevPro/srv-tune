@@ -71,6 +71,10 @@ never by assertion.
   row: coverage now also pins `PermitTunnel` preservation through `access
   set`, IPv6 peers, and the no-`Port` stderr note; `TESTING-VM §7` remains
   the human-only debt.
+- [x] Status 2026-10-19 (rename to Temper): mechanical rename PR — case-sensitive
+  mapping, history-preserving allowlist, guard grep limited to the enumerated
+  exceptions; full CI green on the PR. Post-merge: repository renamed, 301 redirect +
+  new raw URL checked, dry-run release artifact prefix checked (evidence: PR thread).
 
 ## Manual scenario tracker (TESTING-VM.md)
 

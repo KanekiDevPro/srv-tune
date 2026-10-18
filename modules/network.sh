@@ -38,8 +38,8 @@ network_mem_kb() {
 
 network_nic_speed() {
   # Mbps; explicit override wins (tests), else fastest NIC, else 1000.
-  if [[ -n "${SRV_TUNE_NIC_SPEED_MBPS:-}" ]]; then
-    printf '%s\n' "$SRV_TUNE_NIC_SPEED_MBPS"
+  if [[ -n "${TEMPER_NIC_SPEED_MBPS:-}" ]]; then
+    printf '%s\n' "$TEMPER_NIC_SPEED_MBPS"
     return 0
   fi
   local s best=0 f
@@ -132,7 +132,7 @@ network_recommend() {
   mem="$(network_mem_kb)"
   speed="$(network_nic_speed)"
   printf 'TCP buffers from %s kB RAM and %s Mbps NIC (why: RAM/16 capped by 200ms BDP; >40Gbps links distrusted on VMs; clamped 4-256MB)\n' "$mem" "$speed"
-  printf 'NIC speed %s Mbps (why: shapes buffer choice; override SRV_TUNE_NIC_SPEED_MBPS)\n' "$speed"
+  printf 'NIC speed %s Mbps (why: shapes buffer choice; override TEMPER_NIC_SPEED_MBPS)\n' "$speed"
   if network_bbr_ok; then
     printf 'enable BBR+fq (why: kernel offers bbr, higher throughput)\n'
   else
@@ -147,7 +147,7 @@ network_recommend() {
 }
 
 network_conf_path() {
-  sys_p /etc/sysctl.d/00-srv-tune.conf
+  sys_p /etc/sysctl.d/00-temper.conf
 }
 
 network_apply() {
@@ -162,10 +162,10 @@ network_apply() {
     return 1
   fi
   apply_file "$backup_dir" "$(network_conf_path)" "$tmp" "sysctl from RAM/NIC" || return 1
-  if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+  if [[ "${TEMPER_DRY_RUN:-0}" == "1" ]]; then
     return 0
   fi
-  if [[ "${SRV_TUNE_TEST:-0}" == "1" ]]; then
+  if [[ "${TEMPER_TEST:-0}" == "1" ]]; then
     printf 'note: TEST mode, skipping live sysctl load\n'
     return 0
   fi
@@ -190,7 +190,7 @@ network_verify() {
     printf 'error: banned knob present in %s\n' "$f" >&2
     return 1
   fi
-  if [[ "${SRV_TUNE_TEST:-0}" == "1" ]] || network_is_container; then
+  if [[ "${TEMPER_TEST:-0}" == "1" ]] || network_is_container; then
     return 0
   fi
   local k v cur want fail

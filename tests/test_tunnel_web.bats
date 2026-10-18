@@ -7,41 +7,41 @@
 load bats_helper
 
 setup() {
-  export SRV_TUNE_TEST=1
-  SRV_TUNE_TMP="$(mktemp -d "$BATS_TMPDIR/srv-web-XXXXXX")"
-  export SRV_TUNE_TMP
-  export SRV_TUNE_STATE_DIR="$SRV_TUNE_TMP/state"
-  export SRV_TUNE_LOCK_FILE="$SRV_TUNE_TMP/lock"
-  export SRV_TUNE_ROOT="$BATS_TEST_DIRNAME/.."
-  mkdir -p "$SRV_TUNE_STATE_DIR/backups"
+  export TEMPER_TEST=1
+  TEMPER_TMP="$(mktemp -d "$BATS_TMPDIR/srv-web-XXXXXX")"
+  export TEMPER_TMP
+  export TEMPER_STATE_DIR="$TEMPER_TMP/state"
+  export TEMPER_LOCK_FILE="$TEMPER_TMP/lock"
+  export TEMPER_ROOT="$BATS_TEST_DIRNAME/.."
+  mkdir -p "$TEMPER_STATE_DIR/backups"
   command -v python3 >/dev/null 2>&1 || skip "python3 not installed"
   command -v curl >/dev/null 2>&1 || skip "curl not installed"
   PORT=$((20000 + (RANDOM % 20000)))
   BASE="http://127.0.0.1:$PORT"
-  JAR="$SRV_TUNE_TMP/jar"
-  PAGE="$SRV_TUNE_TMP/page.html"
-  TOKEN_FILE="$SRV_TUNE_STATE_DIR/web/token"
+  JAR="$TEMPER_TMP/jar"
+  PAGE="$TEMPER_TMP/page.html"
+  TOKEN_FILE="$TEMPER_STATE_DIR/web/token"
   case "$(uname -s 2>/dev/null)" in
   MINGW* | MSYS* | CYGWIN*) SKIP_CLI=1 ;;
   *) SKIP_CLI=0 ;;
   esac
-  export SRV_TUNE_TEST_CALLS="$SRV_TUNE_TMP/calls.log"
-  : >"$SRV_TUNE_TEST_CALLS"
+  export TEMPER_TEST_CALLS="$TEMPER_TMP/calls.log"
+  : >"$TEMPER_TEST_CALLS"
   _write_stub
   PYTHON="$(command -v python3)"
-  "$PYTHON" "$SRV_TUNE_ROOT/web/tunnel_web.py" \
-    --port "$PORT" --state-dir "$SRV_TUNE_STATE_DIR" \
-    --bin "$SRV_TUNE_TMP/stub-srv-tune" >"$SRV_TUNE_TMP/web.log" 2>&1 &
+  "$PYTHON" "$TEMPER_ROOT/web/tunnel_web.py" \
+    --port "$PORT" --state-dir "$TEMPER_STATE_DIR" \
+    --bin "$TEMPER_TMP/stub-temper" >"$TEMPER_TMP/web.log" 2>&1 &
   SERVER_PID=$!
   _wait_for 50 test -f "$TOKEN_FILE" || {
-    cat "$SRV_TUNE_TMP/web.log" >&2
+    cat "$TEMPER_TMP/web.log" >&2
     false
   }
   # The token file is written before the socket binds; wait for the port so
   # the first request cannot race a slow start (flake seen in CI: curl 7 on
   # the dashboard test).
   _wait_for 50 curl -s -o /dev/null "$BASE/" || {
-    cat "$SRV_TUNE_TMP/web.log" >&2
+    cat "$TEMPER_TMP/web.log" >&2
     false
   }
   TOKEN="$(cat "$TOKEN_FILE")"
@@ -49,7 +49,7 @@ setup() {
 
 teardown() {
   [[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null || true
-  rm -rf "${SRV_TUNE_TMP:-}" 2>/dev/null || true
+  rm -rf "${TEMPER_TMP:-}" 2>/dev/null || true
 }
 
 _wait_for() {
@@ -64,9 +64,9 @@ _wait_for() {
 }
 
 _write_stub() {
-  cat >"$SRV_TUNE_TMP/stub-srv-tune" <<'EOF'
+  cat >"$TEMPER_TMP/stub-temper" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' "$*" >>"${SRV_TUNE_TEST_CALLS:?}"
+printf '%s\n' "$*" >>"${TEMPER_TEST_CALLS:?}"
 case "$*" in
   "tunnel status --json")
     printf '%s\n' '{"mode":"TUNNEL","port":"22","user":"tunnel","permit_open":"none","gateway_ports":false,"permit_tunnel":false,"ip_forward":false,"dropin":"/tmp/x","dropin_present":true,"sessions":0}'
@@ -80,7 +80,7 @@ case "$*" in
   *) printf 'unexpected: %s\n' "$*" >&2; exit 2 ;;
 esac
 EOF
-  chmod +x "$SRV_TUNE_TMP/stub-srv-tune"
+  chmod +x "$TEMPER_TMP/stub-temper"
 }
 
 _login() {
@@ -92,14 +92,14 @@ _csrf() {
 }
 
 _chmod_effective() {
-  local probe="$SRV_TUNE_TMP/permprobe"
+  local probe="$TEMPER_TMP/permprobe"
   printf 'x\n' >"$probe"
   chmod 600 "$probe" 2>/dev/null || return 1
   [[ "$(stat -c '%a' "$probe" 2>/dev/null)" == "600" ]]
 }
 
 @test "web panel self-check passes" {
-  run "$PYTHON" "$SRV_TUNE_ROOT/web/tunnel_web.py" --self-check
+  run "$PYTHON" "$TEMPER_ROOT/web/tunnel_web.py" --self-check
   [ "$status" -eq 0 ]
   [[ "$output" == *"self-check ok"* ]]
 }
@@ -151,7 +151,7 @@ _chmod_effective() {
   code="$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -X POST \
     --data-urlencode "key=ssh-ed25519 AAAAtest" "$BASE/api/keys/add")"
   [ "$code" = "403" ]
-  run grep -q 'keys add' "$SRV_TUNE_TEST_CALLS"
+  run grep -q 'keys add' "$TEMPER_TEST_CALLS"
   [ "$status" -ne 0 ]
   csrf="$(_csrf)"
   [ -n "$csrf" ]
@@ -159,7 +159,7 @@ _chmod_effective() {
     --data-urlencode "csrf=$csrf" --data-urlencode "key=ssh-ed25519 AAAAtest" \
     --data-urlencode "comment=laptop" "$BASE/api/keys/add")"
   [ "$code" = "303" ]
-  grep -q 'tunnel keys add' "$SRV_TUNE_TEST_CALLS"
+  grep -q 'tunnel keys add' "$TEMPER_TEST_CALLS"
 }
 
 @test "remove validates the fingerprint and accepts JSON with X-CSRF" {
@@ -170,11 +170,11 @@ _chmod_effective() {
   run curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -X POST \
     --data-urlencode "csrf=$csrf" --data-urlencode "fp=not-a-fp" "$BASE/api/keys/remove"
   [ "$output" = "400" ]
-  run grep -q 'keys remove' "$SRV_TUNE_TEST_CALLS"
+  run grep -q 'keys remove' "$TEMPER_TEST_CALLS"
   [ "$status" -ne 0 ]
   curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -X POST \
     --data-urlencode "csrf=$csrf" --data-urlencode "fp=SHA256:abc" "$BASE/api/keys/remove" >/dev/null
-  grep -q -- '--fp SHA256:abc' "$SRV_TUNE_TEST_CALLS"
+  grep -q -- '--fp SHA256:abc' "$TEMPER_TEST_CALLS"
   run curl -s -b "$JAR" -H 'Content-Type: application/json' -H "X-CSRF: $csrf" \
     -d '{"fp":"SHA256:def"}' "$BASE/api/keys/remove"
   [ "$status" -eq 0 ]
@@ -208,12 +208,12 @@ _chmod_effective() {
   _chmod_effective || skip "filesystem does not honor chmod"
   kill "$SERVER_PID" 2>/dev/null || true
   wait "$SERVER_PID" 2>/dev/null || true
-  mkdir -p "$SRV_TUNE_STATE_DIR/web"
+  mkdir -p "$TEMPER_STATE_DIR/web"
   printf '0123456789abcdef0123456789abcdef\n' >"$TOKEN_FILE"
   chmod 644 "$TOKEN_FILE"
-  run timeout 5 "$PYTHON" "$SRV_TUNE_ROOT/web/tunnel_web.py" \
-    --port "$PORT" --state-dir "$SRV_TUNE_STATE_DIR" \
-    --bin "$SRV_TUNE_TMP/stub-srv-tune"
+  run timeout 5 "$PYTHON" "$TEMPER_ROOT/web/tunnel_web.py" \
+    --port "$PORT" --state-dir "$TEMPER_STATE_DIR" \
+    --bin "$TEMPER_TMP/stub-temper"
   [ "$status" -eq 1 ]
   [[ "$output" == *"group/world readable"* ]]
   SERVER_PID=""
