@@ -35,7 +35,7 @@ Most "server optimizer" scripts paste sysctl values from the internet and hope. 
 
 Requirements: `bash`, root for `apply`/`repair`, a systemd-based Ubuntu/Debian. The installer only copies files — it never applies tuning and never touches services.
 
-**One line** (public repo, needs `git`):
+**One line** (needs `git`):
 
 ```bash
 git clone --depth 1 https://github.com/KanekiDevPro/srv-tune.git && sudo ./srv-tune/install.sh --yes

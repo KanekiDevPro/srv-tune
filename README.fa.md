@@ -35,7 +35,7 @@ SCAN → RECOMMEND → APPLY → VERIFY → ROLLBACK-IF-BROKEN
 
 پیش‌نیازها: `bash`، دسترسی root برای `apply`/`repair`، سیستم systemd روی Ubuntu/Debian. نصب‌کننده فقط فایل کپی می‌کند — هیچ تنظیمی اعمال نمی‌کند و به سرویس‌ها دست نمی‌زند.
 
-**تک‌خطی** (ریپوی عمومی، نیاز به `git`):
+**تک‌خطی** (نیاز به `git`):
 
 ```bash
 git clone --depth 1 https://github.com/KanekiDevPro/srv-tune.git && sudo ./srv-tune/install.sh --yes
