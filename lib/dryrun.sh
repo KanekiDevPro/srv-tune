@@ -5,10 +5,10 @@
 # and returns 0 without writing.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_DRYRUN_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_DRYRUN_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_DRYRUN_SOURCED=1
+__TEMPER_DRYRUN_SOURCED=1
 
 # dry_run_file <path> <new_tmp> <why> - unified diff old-vs-new + one why line.
 dry_run_file() {
@@ -31,7 +31,7 @@ apply_file() {
   shift 4
   # shellcheck disable=SC1091
   source "$(dirname "${BASH_SOURCE[0]}")/backup.sh"
-  if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+  if [[ "${TEMPER_DRY_RUN:-0}" == "1" ]]; then
     dry_run_file "$path" "$new_tmp" "$why"
     return 0
   fi

@@ -1,8 +1,8 @@
-.TH SRV-TUNE 1 "2026-10-19" "srv-tune 0.4.0" "System administration"
+.TH TEMPER 1 "2026-10-19" "temper 0.4.0" "System administration"
 .SH NAME
-srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-BROKEN
+temper \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-BROKEN
 .SH SYNOPSIS
-.B srv-tune scan
+.B temper scan
 .RB [ \-\-json
 .IR FILE ]
 .RB [ \-\-diff
@@ -10,11 +10,11 @@ srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-
 .RB [ \-\-lang
 .IR fa | en ]
 .br
-.B srv-tune recommend
+.B temper recommend
 .RB [ \-\-lang
 .IR fa | en ]
 .br
-.B srv-tune apply \-\-profile
+.B temper apply \-\-profile
 .I NAME
 .RB [ \-\-only
 .IR mod [,mod]]
@@ -29,7 +29,7 @@ srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-
 .RB [ \-\-dns\-extra
 .IR NAME ]
 .br
-.B srv-tune rollback
+.B temper rollback
 .RI [ id ]
 |
 .B list-backups
@@ -38,14 +38,14 @@ srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-
 |
 .BI explain " module"
 .br
-.B srv-tune benchmark
+.B temper benchmark
 .RB [ \-\-out
 .IR DIR ]
 |
 .BR \-\-compare
 .IR BEFORE " " AFTER
 .br
-.B srv-tune audit
+.B temper audit
 |
 .B update
 |
@@ -53,18 +53,18 @@ srv-tune \- Linux server optimizer: SCAN, RECOMMEND, APPLY, VERIFY, ROLLBACK-IF-
 |
 .BI confirm " guard-id"
 .br
-.B srv-tune health
+.B temper health
 .RB [ \-\-json
 .IR FILE ]
 .br
-.B srv-tune repair
+.B temper repair
 .RB [ \-\-dry\-run ]
 .RB [ \-\-json
 .IR FILE ]
 .br
-.B srv-tune tunnel [status|keys|access|sessions|web]
+.B temper tunnel [status|keys|access|sessions|web]
 .SH DESCRIPTION
-srv-tune tunes a Linux server in five auditable stages: read-only
+temper tunes a Linux server in five auditable stages: read-only
 .BR scan ,
 profile
 .BR recommend ,
@@ -170,7 +170,7 @@ or is not a flat scan JSON (then 2).
 The
 .B tunnel
 command manages an SSH forwarding-only server: an interactive menu
-.RB ( "srv-tune tunnel" )
+.RB ( "temper tunnel" )
 plus scriptable subcommands
 .BR status ,
 .BR sessions ,
@@ -182,22 +182,22 @@ plus scriptable subcommands
 and
 .BR web .
 .PP
-.B srv-tune tunnel keys add
+.B temper tunnel keys add
 reads one public key from stdin
-.RB ( "srv-tune tunnel keys add < id_ed25519.pub" );
+.RB ( "temper tunnel keys add < id_ed25519.pub" );
 .BR \-\-file
 reads a path instead and
 .B \-\-comment
 labels the key. Keys are validated with
 .BR ssh-keygen (1),
 deduplicated by key body, backed up under
-.IR /var/lib/srv-tune/backups/ ,
+.IR /var/lib/temper/backups/ ,
 and every add and remove is recorded in the tunnel audit log.
-.B srv-tune tunnel keys remove \-\-fp
+.B temper tunnel keys remove \-\-fp
 .I SHA256:...
 removes one key by fingerprint.
 .PP
-.B srv-tune tunnel access set \-\-permit-open
+.B temper tunnel access set \-\-permit-open
 .I host:port[,host:port]
 .B \-\-gateway\-ports
 .I yes|no
@@ -205,23 +205,23 @@ rewrites only the PermitOpen and GatewayPorts lines of the applied TUNNEL
 drop-in and preserves the current port and tunnel user. It goes through
 the same guarded apply as the ssh module: confirm the guard from a NEW
 session with
-.B srv-tune confirm
+.B temper confirm
 .IR id .
 .PP
-.B srv-tune tunnel web
+.B temper tunnel web
 .RB [ \-\-port
 .IR N ]
 .RB [ \-\-bind
 .IR ADDR ]
 runs a localhost-only HTTP panel (default 127.0.0.1:8787; the
-.B SRV_TUNE_TUNNEL_WEB_PORT
+.B TEMPER_TUNNEL_WEB_PORT
 environment variable is honored). It prints a one-shot login URL; after
 that first visit the panel authenticates with an HttpOnly cookie. Reach
 it from a workstation with
 .BR "ssh \-L 8787:127.0.0.1:8787 user@host" .
 The panel shows status, sessions and keys and can add or remove keys; it
 never edits sshd policy. The token is stored in
-.I /var/lib/srv-tune/web/token
+.I /var/lib/temper/web/token
 with mode 600, failed logins are rate limited, and python3 is required
 for the panel only.
 .PP
@@ -249,7 +249,7 @@ their risks and need typed phrases. No telemetry, no hidden network calls.
 .I data/*.list
 \- curated mirrors/resolvers with owner, docs, tier and verified fields.
 .br
-.I /var/lib/srv-tune/backups/<id>/
+.I /var/lib/temper/backups/<id>/
 \- per-apply backups restored by
 .BR rollback .
 .SH EXIT STATUS

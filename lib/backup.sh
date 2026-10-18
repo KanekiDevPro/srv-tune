@@ -3,10 +3,10 @@
 # Backup + atomic write. Every file is backed up before change with manifest.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_BACKUP_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_BACKUP_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_BACKUP_SOURCED=1
+__TEMPER_BACKUP_SOURCED=1
 
 # new_backup_id -> prints timestamp-id
 new_backup_id() {

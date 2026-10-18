@@ -16,11 +16,11 @@ while IFS= read -r f; do
   fi
 done < <(git ls-files)
 echo "--- scan smoke ---"
-SRV_TUNE_STATE_DIR=/tmp/srv-tune-test-state bash scanner/scan.sh --recommend-only || fail=1
+TEMPER_STATE_DIR=/tmp/temper-test-state bash scanner/scan.sh --recommend-only || fail=1
 echo "--- backup smoke ---"
-export SRV_TUNE_STATE_DIR=/tmp/srv-tune-test-state
-mkdir -p /tmp/srv-tune-test-state/backups
+export TEMPER_STATE_DIR=/tmp/temper-test-state
+mkdir -p /tmp/temper-test-state/backups
 echo v1 >/tmp/srv-orig.conf
-bash -c 'source lib/backup.sh; source lib/rollback.sh; backup_file /tmp/srv-orig.conf /tmp/srv-tune-test-state/backups/t1; echo v2 > /tmp/srv-orig.conf; rollback_id t1; cat /tmp/srv-orig.conf'
+bash -c 'source lib/backup.sh; source lib/rollback.sh; backup_file /tmp/srv-orig.conf /tmp/temper-test-state/backups/t1; echo v2 > /tmp/srv-orig.conf; rollback_id t1; cat /tmp/srv-orig.conf'
 test "$(cat /tmp/srv-orig.conf)" = "v1" || fail=1
 exit $fail

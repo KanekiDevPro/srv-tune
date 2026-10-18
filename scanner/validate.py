@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a srv-tune scan JSON against schema/scanner-v1.json.
+"""Validate a temper scan JSON against schema/scanner-v1.json.
 
 Stdlib only (json/re/sys) so it runs anywhere python3 exists. Enforces the
 contract bits that matter: required keys, SCORE numeric 0-100, PROFILE and

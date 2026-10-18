@@ -1,51 +1,51 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# srv-tune entrypoint: SCAN -> RECOMMEND -> APPLY -> VERIFY -> ROLLBACK-IF-BROKEN.
+# temper entrypoint: SCAN -> RECOMMEND -> APPLY -> VERIFY -> ROLLBACK-IF-BROKEN.
 # shellcheck shell=bash
 set -euo pipefail
 
-SRV_TUNE_ROOT="${BASH_SOURCE[0]}"
-# Resolve install symlinks (prefix/bin/srv-tune -> share/srv-tune) without
+TEMPER_ROOT="${BASH_SOURCE[0]}"
+# Resolve install symlinks (prefix/bin/temper -> share/temper) without
 # readlink -f (not portable): follow one level at a time, bounded.
 for _i in 1 2 3 4 5 6 7 8; do
-  if [[ -L "$SRV_TUNE_ROOT" ]]; then
-    _tgt="$(readlink "$SRV_TUNE_ROOT")"
+  if [[ -L "$TEMPER_ROOT" ]]; then
+    _tgt="$(readlink "$TEMPER_ROOT")"
     case "$_tgt" in
-    /*) SRV_TUNE_ROOT="$_tgt" ;;
-    *) SRV_TUNE_ROOT="$(dirname "$SRV_TUNE_ROOT")/$_tgt" ;;
+    /*) TEMPER_ROOT="$_tgt" ;;
+    *) TEMPER_ROOT="$(dirname "$TEMPER_ROOT")/$_tgt" ;;
     esac
   else
     break
   fi
 done
 unset _i _tgt
-SRV_TUNE_ROOT="$(cd "$(dirname "$SRV_TUNE_ROOT")" && pwd)"
-export SRV_TUNE_ROOT
+TEMPER_ROOT="$(cd "$(dirname "$TEMPER_ROOT")" && pwd)"
+export TEMPER_ROOT
 
 # shellcheck disable=SC1091
-source "$SRV_TUNE_ROOT/lib/common.sh"
+source "$TEMPER_ROOT/lib/common.sh"
 # shellcheck disable=SC1091
-source "$SRV_TUNE_ROOT/lib/log.sh"
+source "$TEMPER_ROOT/lib/log.sh"
 # shellcheck disable=SC1091
-source "$SRV_TUNE_ROOT/lib/ui.sh"
+source "$TEMPER_ROOT/lib/ui.sh"
 # shellcheck disable=SC1091
-source "$SRV_TUNE_ROOT/lib/i18n.sh"
+source "$TEMPER_ROOT/lib/i18n.sh"
 # shellcheck disable=SC1091
-source "$SRV_TUNE_ROOT/lib/lock.sh"
+source "$TEMPER_ROOT/lib/lock.sh"
 # shellcheck disable=SC1091
-source "$SRV_TUNE_ROOT/lib/state.sh"
+source "$TEMPER_ROOT/lib/state.sh"
 # shellcheck disable=SC1091
-source "$SRV_TUNE_ROOT/lib/rollback.sh"
+source "$TEMPER_ROOT/lib/rollback.sh"
 # shellcheck disable=SC1091
-source "$SRV_TUNE_ROOT/lib/preflight.sh"
+source "$TEMPER_ROOT/lib/preflight.sh"
 # shellcheck disable=SC1091
-source "$SRV_TUNE_ROOT/lib/ssh-guard.sh"
+source "$TEMPER_ROOT/lib/ssh-guard.sh"
 
-VERSION="$(cat "$SRV_TUNE_ROOT/VERSION" 2>/dev/null || printf '0.1.0')"
+VERSION="$(cat "$TEMPER_ROOT/VERSION" 2>/dev/null || printf '0.1.0')"
 
 usage() {
   cat <<EOF
-srv-tune $VERSION — Linux server optimizer
+temper $VERSION — Linux server optimizer
 Usage:
   optimizer scan [--json FILE] [--diff BASELINE.json] [--lang fa|en]
   optimizer recommend [--lang fa|en]
@@ -63,8 +63,8 @@ EOF
 }
 
 PROFILE=""
-DRY_RUN="${SRV_TUNE_DRY_RUN:-0}"
-ASSUME_YES="${SRV_TUNE_ASSUME_YES:-0}"
+DRY_RUN="${TEMPER_DRY_RUN:-0}"
+ASSUME_YES="${TEMPER_ASSUME_YES:-0}"
 FORCE=0
 JSON_OUT=""
 SCAN_DIFF=""
@@ -97,7 +97,7 @@ while [[ $# -gt 0 ]]; do
     shift 2
     ;;
   --install-deps)
-    export SRV_TUNE_INSTALL_DEPS=1
+    export TEMPER_INSTALL_DEPS=1
     shift
     ;;
   --compare)
@@ -123,45 +123,45 @@ while [[ $# -gt 0 ]]; do
     shift 2
     ;;
   --with-ssh)
-    export SRV_TUNE_WITH_SSH=1
+    export TEMPER_WITH_SSH=1
     shift
     ;;
   --with-firewall)
-    export SRV_TUNE_WITH_FIREWALL=1
+    export TEMPER_WITH_FIREWALL=1
     shift
     ;;
   --with-registry)
-    export SRV_TUNE_WITH_REGISTRY=1
+    export TEMPER_WITH_REGISTRY=1
     shift
     ;;
   --mirror)
-    export SRV_TUNE_MIRROR_URL="${2:-}"
+    export TEMPER_MIRROR_URL="${2:-}"
     shift 2
     ;;
   --dns-extra)
-    if [[ -z "${SRV_TUNE_DNS_EXTRA:-}" ]]; then
-      export SRV_TUNE_DNS_EXTRA="${2:-}"
+    if [[ -z "${TEMPER_DNS_EXTRA:-}" ]]; then
+      export TEMPER_DNS_EXTRA="${2:-}"
     else
-      export SRV_TUNE_DNS_EXTRA="${SRV_TUNE_DNS_EXTRA},${2:-}"
+      export TEMPER_DNS_EXTRA="${TEMPER_DNS_EXTRA},${2:-}"
     fi
     shift 2
     ;;
   --with-dot)
-    export SRV_TUNE_WITH_DOT=1
+    export TEMPER_WITH_DOT=1
     shift
     ;;
   --config)
-    export SRV_TUNE_CUSTOM_PROFILE="$2"
+    export TEMPER_CUSTOM_PROFILE="$2"
     shift 2
     ;;
   --dry-run)
     DRY_RUN=1
-    export SRV_TUNE_DRY_RUN="$DRY_RUN"
+    export TEMPER_DRY_RUN="$DRY_RUN"
     shift
     ;;
   --yes)
     ASSUME_YES=1
-    export SRV_TUNE_ASSUME_YES="$ASSUME_YES"
+    export TEMPER_ASSUME_YES="$ASSUME_YES"
     shift
     ;;
   --force)
@@ -169,8 +169,8 @@ while [[ $# -gt 0 ]]; do
     shift
     ;;
   --lang)
-    SRV_TUNE_LANG="${2:-en}"
-    export SRV_TUNE_LANG
+    TEMPER_LANG="${2:-en}"
+    export TEMPER_LANG
     shift 2
     ;;
   --json)
@@ -186,7 +186,7 @@ while [[ $# -gt 0 ]]; do
     shift 2
     ;;
   --version | -V)
-    printf 'srv-tune %s\n' "$VERSION"
+    printf 'temper %s\n' "$VERSION"
     exit 0
     ;;
   --help | -h)
@@ -212,7 +212,7 @@ cmd_locked_scan() {
   # EXIT covers normal + error paths; INT/TERM cover Ctrl+C and kill.
   # lock_release is idempotent, so double runs are safe.
   trap lock_release EXIT INT TERM
-  bash "$SRV_TUNE_ROOT/scanner/scan.sh" "$@"
+  bash "$TEMPER_ROOT/scanner/scan.sh" "$@"
   local rc=$?
   trap - EXIT INT TERM
   lock_release
@@ -221,8 +221,8 @@ cmd_locked_scan() {
 
 case "$CMD" in
 scan)
-  export SRV_TUNE_JSON_OUT="$JSON_OUT"
-  export SRV_TUNE_SCAN_DIFF="$SCAN_DIFF"
+  export TEMPER_JSON_OUT="$JSON_OUT"
+  export TEMPER_SCAN_DIFF="$SCAN_DIFF"
   cmd_locked_scan
   ;;
 recommend)
@@ -231,16 +231,16 @@ recommend)
 audit)
   # Report only: preflight warnings never block the read-only scan.
   preflight_check || log_warn "preflight issues noted (audit continues read-only)"
-  export SRV_TUNE_JSON_OUT="$JSON_OUT"
+  export TEMPER_JSON_OUT="$JSON_OUT"
   cmd_locked_scan --recommend-only
   ;;
 apply)
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/lib/modules.sh"
+  source "$TEMPER_ROOT/lib/modules.sh"
   if [[ -z "$PROFILE" ]]; then
     # Interactive selection, default = scanner recommendation (One Enter).
     # --yes without --profile takes the recommendation silently.
-    rec="$(bash "$SRV_TUNE_ROOT/scanner/scan.sh" --recommend-only 2>/dev/null | awk '/^profile:/{print $2}' || true)"
+    rec="$(bash "$TEMPER_ROOT/scanner/scan.sh" --recommend-only 2>/dev/null | awk '/^profile:/{print $2}' || true)"
     [[ -z "$rec" ]] && rec="generic"
     PROFILE="$(ui_menu "$(t choose_profile)" "$rec" generic web database docker vpn-tunnel low-ram custom)"
   fi
@@ -278,7 +278,7 @@ confirm)
   ;;
 ssh-close-port)
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/lib/modules.sh"
+  source "$TEMPER_ROOT/lib/modules.sh"
   module_load ssh
   lock_acquire || exit 1
   trap lock_release EXIT INT TERM
@@ -290,20 +290,20 @@ ssh-close-port)
   ;;
 tunnel)
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/lib/tunnel.sh"
+  source "$TEMPER_ROOT/lib/tunnel.sh"
   tunnel_main "${TUNNEL_ARGS[@]}"
   exit $?
   ;;
 explain)
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/lib/modules.sh"
+  source "$TEMPER_ROOT/lib/modules.sh"
   module_explain "${EXTRA:-}"
   ;;
 health)
   # Read-only drift check: replays applied modules' verify + guard status.
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/lib/health.sh"
-  export SRV_TUNE_JSON_OUT="$JSON_OUT"
+  source "$TEMPER_ROOT/lib/health.sh"
+  export TEMPER_JSON_OUT="$JSON_OUT"
   rc=0
   health_run || rc=$?
   exit "$rc"
@@ -311,34 +311,34 @@ health)
 repair)
   # Drift repair: health replay, then re-apply ONLY the failed modules.
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/lib/repair.sh"
-  export SRV_TUNE_JSON_OUT="$JSON_OUT"
+  source "$TEMPER_ROOT/lib/repair.sh"
+  export TEMPER_JSON_OUT="$JSON_OUT"
   rc=0
   repair_run || rc=$?
   exit "$rc"
   ;;
 benchmark)
   if [[ -n "${BENCH_CMP_A:-}" ]]; then
-    bash "$SRV_TUNE_ROOT/bench/compare.sh" "$BENCH_CMP_A" "$BENCH_CMP_B" --format="${BENCH_FORMAT:-md}"
+    bash "$TEMPER_ROOT/bench/compare.sh" "$BENCH_CMP_A" "$BENCH_CMP_B" --format="${BENCH_FORMAT:-md}"
     exit $?
   fi
-  args=("$SRV_TUNE_ROOT/bench/bench.sh" "${BENCH_OUT:-bench-out}")
+  args=("$TEMPER_ROOT/bench/bench.sh" "${BENCH_OUT:-bench-out}")
   if [[ -n "${BENCH_IPERF:-}" ]]; then
     args+=("--iperf-server=$BENCH_IPERF")
   fi
-  if [[ "${SRV_TUNE_INSTALL_DEPS:-0}" == "1" ]]; then
+  if [[ "${TEMPER_INSTALL_DEPS:-0}" == "1" ]]; then
     args+=("--install-deps")
   fi
   bash "${args[@]}"
   ;;
 update)
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/lib/update.sh"
+  source "$TEMPER_ROOT/lib/update.sh"
   self_update
   ;;
 uninstall)
   # shellcheck disable=SC1091
-  source "$SRV_TUNE_ROOT/lib/update.sh"
-  do_uninstall "${SRV_TUNE_PREFIX:-/usr/local}"
+  source "$TEMPER_ROOT/lib/update.sh"
+  do_uninstall "${TEMPER_PREFIX:-/usr/local}"
   ;;
 esac

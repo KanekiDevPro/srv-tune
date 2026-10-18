@@ -3,16 +3,16 @@
 # UI helpers: whiptail if present else plain prompts. Never auto-install deps.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_UI_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_UI_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_UI_SOURCED=1
+__TEMPER_UI_SOURCED=1
 
 ui_confirm_default_yes() {
   # $1 = prompt text. One Enter accepts. --yes bypasses. Non-tty without
   # --yes NEVER applies (piped EOF must not count as consent).
   local prompt="$1"
-  if [[ "${SRV_TUNE_ASSUME_YES:-0}" == "1" ]]; then
+  if [[ "${TEMPER_ASSUME_YES:-0}" == "1" ]]; then
     return 0
   fi
   if [[ ! -t 0 ]]; then
@@ -39,7 +39,7 @@ ui_info() {
 ui_type_confirm() {
   # $1 = prompt text, $2 = exact phrase to type. --yes bypasses (automation).
   local prompt="$1" expected="$2" ans=""
-  if [[ "${SRV_TUNE_ASSUME_YES:-0}" == "1" ]]; then
+  if [[ "${TEMPER_ASSUME_YES:-0}" == "1" ]]; then
     return 0
   fi
   if command -v whiptail >/dev/null 2>&1 && [[ -t 0 ]]; then
@@ -57,7 +57,7 @@ ui_menu() {
   local title="$1" default="$2"
   shift 2
   local opts=("$@") i choice
-  if [[ "${SRV_TUNE_ASSUME_YES:-0}" == "1" ]] || [[ ! -t 0 ]]; then
+  if [[ "${TEMPER_ASSUME_YES:-0}" == "1" ]] || [[ ! -t 0 ]]; then
     printf '%s\n' "$default"
     return 0
   fi

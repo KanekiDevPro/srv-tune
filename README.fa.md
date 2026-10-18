@@ -1,12 +1,12 @@
 <div align="center">
 
-# 🛠️ srv-tune
+# 🛠️ temper
 
 **بهینه‌ساز سرور لینوکس که کارش را نشان می‌دهد — هر تغییر بکاپ می‌شود، ارزیابی می‌شود و اگر خراب کند، خودکار برمی‌گردد.**
 
-[![CI](https://github.com/KanekiDevPro/srv-tune/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/KanekiDevPro/srv-tune/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/KanekiDevPro/srv-tune?sort=semver)](https://github.com/KanekiDevPro/srv-tune/releases)
-[![License: MIT](https://img.shields.io/github/license/KanekiDevPro/srv-tune)](LICENSE)
+[![CI](https://github.com/KanekiDevPro/temper/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/KanekiDevPro/temper/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/KanekiDevPro/temper?sort=semver)](https://github.com/KanekiDevPro/temper/releases)
+[![License: MIT](https://img.shields.io/github/license/KanekiDevPro/temper)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu%20%7C%20Debian-E95420?logo=ubuntu&logoColor=white)](#)
 [![Shell](https://img.shields.io/badge/shell-bash-4EAA25?logo=gnubash&logoColor=white)](#)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
@@ -19,12 +19,12 @@
 SCAN → RECOMMEND → APPLY → VERIFY → ROLLBACK-IF-BROKEN
 ```
 
-<!-- GIF نمایشی: خروجی `srv-tune scan` و `apply --dry-run` را روی VM تمیز ضبط کنید،
+<!-- GIF نمایشی: خروجی `temper scan` و `apply --dry-run` را روی VM تمیز ضبط کنید،
 در docs/demo.gif ذخیره کنید و embed را اینجا برگردانید. -->
 
-## ✨ چرا srv-tune؟
+## ✨ چرا temper؟
 
-بیشتر اسکریپت‌های «بهینه‌سازی سرور» چند مقدار sysctl را از اینترنت کپی می‌کنند و امیدوارند. srv-tune مقدارها را از خودِ ماشین حساب می‌کند، هر دیف را **با دلیل** نشان می‌دهد، قبل از هر تغییر بکاپ می‌گیرد، نتیجه را verify می‌کند و برای بخش‌های پرخطر یک بازگشت خودکار زمان‌دار مسلح می‌کند.
+بیشتر اسکریپت‌های «بهینه‌سازی سرور» چند مقدار sysctl را از اینترنت کپی می‌کنند و امیدوارند. temper مقدارها را از خودِ ماشین حساب می‌کند، هر دیف را **با دلیل** نشان می‌دهد، قبل از هر تغییر بکاپ می‌گیرد، نتیجه را verify می‌کند و برای بخش‌های پرخطر یک بازگشت خودکار زمان‌دار مسلح می‌کند.
 
 - **اول فقط خواندن.** `scan` هیچ‌چیز نمی‌نویسد؛ `apply --dry-run` دیف دقیق را قبل از هر تغییری نشان می‌دهد.
 - **برگشت‌پذیر.** هر تغییر بکاپ دارد و با یک دستور برمی‌گردد.
@@ -38,22 +38,22 @@ SCAN → RECOMMEND → APPLY → VERIFY → ROLLBACK-IF-BROKEN
 **تک‌خطی** (نیاز به `git`):
 
 ```bash
-git clone --depth 1 https://github.com/KanekiDevPro/srv-tune.git && sudo ./srv-tune/install.sh --yes
+git clone --depth 1 https://github.com/KanekiDevPro/temper.git && sudo ./temper/install.sh --yes
 ```
 
 **دستی** (برای بار اول توصیه می‌شود — قبل از اجرا بخوانید):
 
 ```bash
-git clone https://github.com/KanekiDevPro/srv-tune.git
-less srv-tune/install.sh
-sudo ./srv-tune/install.sh --yes --prefix /usr/local
+git clone https://github.com/KanekiDevPro/temper.git
+less temper/install.sh
+sudo ./temper/install.sh --yes --prefix /usr/local
 ```
 
 **ریلیز پین‌شده** (تاییدشده با چک‌سام ریلیز):
 
 ```bash
 # مقدار <sum> را از sha256sums.txt در asset های ریلیز بردارید
-sudo ./srv-tune/install.sh --tag vX.Y.Z --sha256 <sum> --yes
+sudo ./temper/install.sh --tag vX.Y.Z --sha256 <sum> --yes
 ```
 
 `update` چک‌سام‌ها را دوباره تایید می‌کند؛ `uninstall` فقط فایل‌های برنامه را حذف می‌کند — کانفیگ‌های شما تا رول‌بک باقی می‌مانند.
@@ -61,29 +61,29 @@ sudo ./srv-tune/install.sh --tag vX.Y.Z --sha256 <sum> --yes
 ## ⚡ شروع سریع
 
 ```bash
-srv-tune scan                        # فقط خواندن: امتیاز + پروفایل پیشنهادی
-srv-tune scan --json baseline.json   # نگه‌داشتن بیس‌لاین برای drift
-srv-tune health                      # فقط خواندن: drift + گاردهای در انتظار
-srv-tune apply --dry-run             # دیف دقیق + دلیل، بدون نوشتن
-sudo srv-tune apply                  # اعمال پروفایل پیشنهادی (Enter قبول)
-sudo srv-tune repair                 # فقط ماژول‌های drifted را دوباره اعمال می‌کند
-srv-tune rollback <id>               # برگشت یک اعمال (لیست: list-backups)
-srv-tune benchmark --out before
-srv-tune benchmark --compare before/bench.json after/bench.json --format md
+temper scan                        # فقط خواندن: امتیاز + پروفایل پیشنهادی
+temper scan --json baseline.json   # نگه‌داشتن بیس‌لاین برای drift
+temper health                      # فقط خواندن: drift + گاردهای در انتظار
+temper apply --dry-run             # دیف دقیق + دلیل، بدون نوشتن
+sudo temper apply                  # اعمال پروفایل پیشنهادی (Enter قبول)
+sudo temper repair                 # فقط ماژول‌های drifted را دوباره اعمال می‌کند
+temper rollback <id>               # برگشت یک اعمال (لیست: list-backups)
+temper benchmark --out before
+temper benchmark --compare before/bench.json after/bench.json --format md
 ```
 
-از داخل سورس، به‌جای `srv-tune` از `./optimizer.sh` استفاده کنید. همیشه با `--dry-run` شروع کنید. برای ssh/فایروال یک نشست سالم باز نگه دارید و از نشست **جدید** تایید کنید.
+از داخل سورس، به‌جای `temper` از `./optimizer.sh` استفاده کنید. همیشه با `--dry-run` شروع کنید. برای ssh/فایروال یک نشست سالم باز نگه دارید و از نشست **جدید** تایید کنید.
 
 ## 🔐 رابط تونل
 
 برای سرور فوروارد SSH (پروفایل `vpn-tunnel`) همه‌چیز در یک جا است:
 
 ```bash
-sudo srv-tune tunnel          # منوی تعاملی: وضعیت، کلیدها، دسترسی، نشست‌ها
-sudo srv-tune tunnel status   # بدون tty: به‌جای منو وضعیت TUNNEL را چاپ می‌کند
-sudo srv-tune tunnel keys add < id_ed25519.pub
-sudo srv-tune tunnel keys remove --fp SHA256:...
-sudo srv-tune tunnel sessions
+sudo temper tunnel          # منوی تعاملی: وضعیت، کلیدها، دسترسی، نشست‌ها
+sudo temper tunnel status   # بدون tty: به‌جای منو وضعیت TUNNEL را چاپ می‌کند
+sudo temper tunnel keys add < id_ed25519.pub
+sudo temper tunnel keys remove --fp SHA256:...
+sudo temper tunnel sessions
 ```
 
 `access set --permit-open host:port --gateway-ports no` فقط خط‌های سیاست را
@@ -92,7 +92,7 @@ sudo srv-tune tunnel sessions
 پنل وب اختیاری است و فقط روی loopback گوش می‌دهد:
 
 ```bash
-sudo srv-tune tunnel web      # http://127.0.0.1:8787 + URL توکن یک‌بارمصرف
+sudo temper tunnel web      # http://127.0.0.1:8787 + URL توکن یک‌بارمصرف
 ssh -L 8787:127.0.0.1:8787 user@server   # از ورک‌استیشن خودتان
 ```
 
@@ -120,10 +120,10 @@ ssh -L 8787:127.0.0.1:8787 user@server   # از ورک‌استیشن خودتا
 
 ## 🛡️ مدل امنیت
 
-- هر فایل قبل تغییر بکاپ می‌شود (`/var/lib/srv-tune/backups/<id>/`)؛ `rollback` برمی‌گرداند.
+- هر فایل قبل تغییر بکاپ می‌شود (`/var/lib/temper/backups/<id>/`)؛ `rollback` برمی‌گرداند.
 - نوشتن اتمی: temp → اعتبارسنجی (مثلاً `sshd -t`) → move. فقط drop-in، اول sort می‌شود؛ کانفیگ اصلی هرگز ویرایش نمی‌شود.
 - ایدمپوتنت: اجرای دوباره امن است. `health` دریفت را گزارش می‌دهد، `repair` فقط drifted را درست می‌کند.
-- تغییر ssh/فایروال یک بازگشت خودکار زمان‌دار مستقل مسلح می‌کند؛ فقط `srv-tune confirm <id>` از نشست **جدید** لغوش می‌کند.
+- تغییر ssh/فایروال یک بازگشت خودکار زمان‌دار مستقل مسلح می‌کند؛ فقط `temper confirm <id>` از نشست **جدید** لغوش می‌کند.
 - بدون تلمتری و بدون تماس شبکه پنهان.
 
 ## 🖥️ سیستم‌های پشتیبانی‌شده
@@ -141,7 +141,7 @@ Debian 11 منقضی است: اسکنر هشدار می‌دهد و `apply` بل
 - [docs/TESTING-VM.md](docs/TESTING-VM.md) — قبل از ماژول‌های آزمایشی بخوانید
 - [docs/DATA-REVIEW.md](docs/DATA-REVIEW.md) — قواعد بازبینی داده میرورها
 - [docs/VERIFICATION-DEBT.md](docs/VERIFICATION-DEBT.md) — دقیقاً چه چیزی تأیید شده و چه چیزی نه
-- [docs/srv-tune.1](docs/srv-tune.1) — man page (`man srv-tune` بعد نصب)
+- [docs/temper.1](docs/temper.1) — man page (`man temper` بعد نصب)
 - [CHANGELOG.md](CHANGELOG.md) — تاریخچه ریلیزها
 
 ## ❓ سؤال‌های رایج
@@ -151,7 +151,7 @@ Debian 11 منقضی است: اسکنر هشدار می‌دهد و `apply` بل
 **برای پروداکشن آماده است؟** ماژول‌های اصلی پایدارند؛ `ssh`/`firewall`/`fail2ban` آزمایشی‌اند — اول روی VM یک‌بارمصرف تست کنید ([docs/TESTING-VM.md](docs/TESTING-VM.md)).
 **تلمتری دارد؟** نه.
 **فارسی؟** `--lang fa` برای خروجی، و [README.fa.md](README.fa.md) کامل.
-**بکاپ‌ها کجا هستند؟** `/var/lib/srv-tune/backups/` — `srv-tune list-backups`.
+**بکاپ‌ها کجا هستند؟** `/var/lib/temper/backups/` — `temper list-backups`.
 
 ## 🤝 مشارکت
 

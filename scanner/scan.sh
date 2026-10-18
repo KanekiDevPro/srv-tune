@@ -67,17 +67,17 @@ while IFS='=' read -r k v; do
 done <"$TMP/all.env"
 JSON="$JSON,\"SCORE\":\"$SCORE\",\"PROFILE\":\"$(json_escape_local "$PROFILE")\"}"
 
-OUT="${SRV_TUNE_JSON_OUT:-${JSON_OUT:-}}"
+OUT="${TEMPER_JSON_OUT:-${JSON_OUT:-}}"
 if [[ -n "$OUT" ]]; then
   printf '%s\n' "$JSON" >"$OUT"
 fi
 
-if [[ -n "${SRV_TUNE_SCAN_DIFF:-}" ]]; then
+if [[ -n "${TEMPER_SCAN_DIFF:-}" ]]; then
   # Compare against a stored scan instead of printing the full report.
   # shellcheck disable=SC1091
   source "$ROOT/scanner/diff.sh"
   rc=0
-  scan_diff_run "$SRV_TUNE_SCAN_DIFF" "$TMP/all.env" "$SCORE" "$PROFILE" || rc=$?
+  scan_diff_run "$TEMPER_SCAN_DIFF" "$TMP/all.env" "$SCORE" "$PROFILE" || rc=$?
   exit "$rc"
 fi
 
@@ -89,7 +89,7 @@ fi
 
 # Human report (stdout; UI language via i18n).
 cat <<EOF
-$(t scan_done): srv-tune $SCORE/100
+$(t scan_done): temper $SCORE/100
 OS: ${OS_ID:-?} ${OS_VERSION:-?} ($TIER) kernel ${KERNEL:-?} init ${INIT:-?} virt ${VIRT:-?}
 CPU: ${CPU_CORES:-?} cores AES-NI=${AES_NI:-?}  RAM: ${RAM_KB:-?}kB swap ${SWAP_KB:-?}kB
 Disk: ${DISK_TYPE:-?} free ${DISK_FREE_KB:-?}kB  IF: ${IFACE:-?} MTU=${MTU:-?} IPv6=${IPV6:-?}

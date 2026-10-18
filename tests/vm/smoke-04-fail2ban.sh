@@ -7,8 +7,8 @@ set -euo pipefail
 source "$(dirname "$0")/smoke-lib.sh"
 
 snapshot_checkpoint "04-fail2ban" || exit 2
-rv_run "cd /tmp/srv-tune && sudo ./optimizer.sh apply --profile generic --only fail2ban --with-firewall --yes" || exit 1
-rv_run "cat /etc/fail2ban/jail.d/00-srv-tune.local" || exit 1
+rv_run "cd /tmp/temper && sudo ./optimizer.sh apply --profile generic --only fail2ban --with-firewall --yes" || exit 1
+rv_run "cat /etc/fail2ban/jail.d/00-temper.local" || exit 1
 rv_run "sudo fail2ban-client status sshd || true" || exit 1
 human_only "external ban proof" \
   "from ANOTHER host (not this session IP), fail 6+ ssh logins with a bad password" \

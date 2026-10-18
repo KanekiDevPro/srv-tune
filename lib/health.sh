@@ -4,10 +4,10 @@
 # (tool missing; caller decides). Read-only unless stated.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_HEALTH_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_HEALTH_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_HEALTH_SOURCED=1
+__TEMPER_HEALTH_SOURCED=1
 
 # health_dns [host] - resolution works (rollback if it fails after DNS apply).
 health_dns() {
@@ -85,7 +85,7 @@ health_guard_state() {
   local id="$1" probed=0
   if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
     probed=1
-    if systemctl is-active --quiet "srv-tune-guard-${id}.timer" 2>/dev/null; then
+    if systemctl is-active --quiet "temper-guard-${id}.timer" 2>/dev/null; then
       return 0
     fi
   fi
@@ -119,7 +119,7 @@ health_check_guards() {
       st=0
       health_guard_state "$id" || st=$?
       case "$st" in
-      0) health_emit WARN "guard:$id" "still armed: timed auto-revert pending; confirm from a NEW session (srv-tune confirm $id)" ;;
+      0) health_emit WARN "guard:$id" "still armed: timed auto-revert pending; confirm from a NEW session (temper confirm $id)" ;;
       1) health_emit WARN "guard:$id" "unconfirmed; auto-revert already fired (its changes were rolled back)" ;;
       *) health_emit WARN "guard:$id" "armed state unknown (no systemctl/pgrep here); check manually" ;;
       esac
@@ -171,7 +171,7 @@ health_run() {
   # shellcheck disable=SC1091
   source "$(dirname "${BASH_SOURCE[0]}")/modules.sh"
   local base log m out rc can_check=0 seen=" " have=0 r st rest name msg
-  base="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
+  base="${TEMPER_STATE_DIR:-/var/lib/temper}"
 
   if [[ ! -d "$base" ]]; then
     health_emit WARN state-dir "$base missing (nothing applied yet?)"
@@ -192,7 +192,7 @@ health_run() {
     if is_root; then
       can_check=1
     fi
-    if [[ "${SRV_TUNE_SYSROOT:-/}" != "/" ]]; then
+    if [[ "${TEMPER_SYSROOT:-/}" != "/" ]]; then
       can_check=1
     fi
     if [[ "$can_check" != "1" ]]; then
@@ -225,8 +225,8 @@ health_run() {
     fi
   fi
 
-  if [[ -n "${SRV_TUNE_JSON_OUT:-}" ]]; then
-    health_write_json "$SRV_TUNE_JSON_OUT" || health_emit WARN json "could not write $SRV_TUNE_JSON_OUT"
+  if [[ -n "${TEMPER_JSON_OUT:-}" ]]; then
+    health_write_json "$TEMPER_JSON_OUT" || health_emit WARN json "could not write $TEMPER_JSON_OUT"
   fi
 
   for r in "${__HEALTH_ROWS[@]}"; do

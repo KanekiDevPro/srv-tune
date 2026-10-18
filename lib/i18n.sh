@@ -3,10 +3,10 @@
 # Minimal i18n: UI strings via dictionaries, default en, --lang fa available.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_I18N_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_I18N_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_I18N_SOURCED=1
+__TEMPER_I18N_SOURCED=1
 
 # shellcheck disable=SC1091
 source_lib() {
@@ -15,8 +15,8 @@ source_lib() {
   source "$f"
 }
 
-srv_tune_lang() {
-  case "${SRV_TUNE_LANG:-en}" in
+temper_lang() {
+  case "${TEMPER_LANG:-en}" in
   fa) printf 'fa\n' ;;
   *) printf 'en\n' ;;
   esac
@@ -26,8 +26,8 @@ srv_tune_lang() {
 t() {
   local key="$1"
   local lang
-  lang="$(srv_tune_lang)"
-  local root="${SRV_TUNE_ROOT:-.}"
+  lang="$(temper_lang)"
+  local root="${TEMPER_ROOT:-.}"
   local dict="$root/lib/i18n/${lang}.sh"
   local fallback="$root/lib/i18n/en.sh"
   local val=""

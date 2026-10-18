@@ -36,7 +36,7 @@ row_md() {
 
 case "$FORMAT" in
 md | markdown)
-  printf '# srv-tune benchmark comparison\n\n'
+  printf '# temper benchmark comparison\n\n'
   printf '| metric | before | after | change |\n|---|---|---|---|\n'
   for m in $METRICS; do
     # shellcheck disable=SC2086
@@ -51,9 +51,9 @@ json)
   printf '\n}\n'
   ;;
 html)
-  printf '<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="utf-8"><title>srv-tune benchmark</title>\n'
+  printf '<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="utf-8"><title>temper benchmark</title>\n'
   printf '<style>table{border-collapse:collapse}td,th{border:1px solid #999;padding:4px 8px}</style>\n'
-  printf '</head>\n<body>\n<h1>srv-tune benchmark comparison</h1>\n<table>\n<tr><th>metric</th><th>before</th><th>after</th><th>change</th></tr>\n'
+  printf '</head>\n<body>\n<h1>temper benchmark comparison</h1>\n<table>\n<tr><th>metric</th><th>before</th><th>after</th><th>change</th></tr>\n'
   for m in $METRICS; do
     # shellcheck disable=SC2086
     r="$(row_md "$m" "$(jget "$BEFORE" $m)" "$(jget "$AFTER" $m)" | sed -e 's/^| //' -e 's/ |$//' -e 's/ | /<\/td><td>/g')"

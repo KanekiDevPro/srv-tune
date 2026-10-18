@@ -11,9 +11,9 @@ mkdir -p "$OUT"
 
 run_scan() {
   local tag="$1"
-  export SRV_TUNE_JSON_OUT="$OUT/scan-$tag.json"
+  export TEMPER_JSON_OUT="$OUT/scan-$tag.json"
   bash "$ROOT/scanner/scan.sh" >"$OUT/human-$tag.txt" 2>"$OUT/scan-$tag.err" || printf 'scan exit: %s\n' "$?" >"$OUT/scan-$tag.exit"
-  unset SRV_TUNE_JSON_OUT
+  unset TEMPER_JSON_OUT
 }
 
 {
@@ -52,7 +52,7 @@ run_scan root
 # Non-root run (read-only scan must work without root).
 if id nobody >/dev/null 2>&1; then
   chmod a+rX "$ROOT" "$ROOT/scanner" 2>/dev/null || true
-  su nobody -s /bin/bash -c "SRV_TUNE_TEST=1 bash $ROOT/scanner/scan.sh" >"$OUT/human-nobody.txt" 2>"$OUT/scan-nobody.err" || true
+  su nobody -s /bin/bash -c "TEMPER_TEST=1 bash $ROOT/scanner/scan.sh" >"$OUT/human-nobody.txt" 2>"$OUT/scan-nobody.err" || true
   su nobody -s /bin/bash -c "id -u; cat /etc/os-release | head -3" >"$OUT/manual-nobody.txt" 2>&1 || true
 else
   printf 'no-nobody-user\n' >"$OUT/human-nobody.txt"

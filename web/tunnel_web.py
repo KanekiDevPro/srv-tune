@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""srv-tune tunnel web panel.
+"""temper tunnel web panel.
 
-Loopback HTTP frontend over the `srv-tune tunnel ... --json` CLI.
+Loopback HTTP frontend over the `temper tunnel ... --json` CLI.
 Standard library only. The panel never edits sshd policy: it shows
 status/sessions/keys and can add or remove tunnel keys.
 
@@ -34,7 +34,7 @@ MAX_BODY = 64 * 1024
 
 LABELS = {
     "en": {
-        "title": "srv-tune tunnel",
+        "title": "temper tunnel",
         "status": "Status",
         "mode": "mode",
         "port": "port",
@@ -56,10 +56,10 @@ LABELS = {
         "key": "Public key",
         "no_sessions": "No active sessions",
         "no_keys": "No keys",
-        "login": "Login required: open the token URL printed by `srv-tune tunnel web`.",
+        "login": "Login required: open the token URL printed by `temper tunnel web`.",
     },
     "fa": {
-        "title": "تونل srv-tune",
+        "title": "تونل temper",
         "status": "وضعیت",
         "mode": "حالت",
         "port": "پورت",
@@ -81,7 +81,7 @@ LABELS = {
         "key": "کلید عمومی",
         "no_sessions": "نشست فعالی نیست",
         "no_keys": "کلیدی نیست",
-        "login": "ورود لازم است: URL توکن را که `srv-tune tunnel web` چاپ می‌کند باز کنید.",
+        "login": "ورود لازم است: URL توکن را که `temper tunnel web` چاپ می‌کند باز کنید.",
     },
 }
 
@@ -145,7 +145,7 @@ def check_token_mode(path):
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
-    server_version = "srv-tune-tunnel-web"
+    server_version = "temper-tunnel-web"
 
     def log_message(self, fmt, *args):
         # Never log the request line: it can contain the login token.
@@ -221,8 +221,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _cli(self, args, stdin=None):
         env = dict(os.environ)
-        env["SRV_TUNE_ACTOR"] = "web"
-        env["SRV_TUNE_SRC"] = self._client()
+        env["TEMPER_ACTOR"] = "web"
+        env["TEMPER_SRC"] = self._client()
         try:
             proc = subprocess.run(
                 [self.server.cli] + args,
@@ -526,11 +526,11 @@ def self_check():
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="srv-tune tunnel web panel (loopback, token auth)")
+        description="temper tunnel web panel (loopback, token auth)")
     parser.add_argument("--port", type=port_type, default=8787)
     parser.add_argument("--bind", default="127.0.0.1")
     parser.add_argument("--state-dir", default="")
-    parser.add_argument("--bin", default="srv-tune")
+    parser.add_argument("--bin", default="temper")
     parser.add_argument("--lang", choices=sorted(LABELS), default="en")
     parser.add_argument("--self-check", action="store_true")
     args = parser.parse_args(argv)

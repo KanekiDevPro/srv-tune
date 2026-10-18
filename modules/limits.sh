@@ -6,12 +6,12 @@
 # shellcheck shell=bash
 
 limits_mem_kb() {
-  local r="${SRV_TUNE_PROCROOT:-}"
+  local r="${TEMPER_PROCROOT:-}"
   awk '/^MemTotal:/{print $2}' "${r}/proc/meminfo" 2>/dev/null || printf '0'
 }
 
 limits_nr_open() {
-  local r="${SRV_TUNE_PROCROOT:-}"
+  local r="${TEMPER_PROCROOT:-}"
   cat "${r}/proc/sys/fs/nr_open" 2>/dev/null || printf '1048576'
 }
 
@@ -53,7 +53,7 @@ limits_recommend() {
   printf 'nofile hard %s (why: 64k + 64k/GB RAM, capped by fs.nr_open)\n' "$hard"
   printf 'nofile soft %s (why: half of hard)\n' "$soft"
   printf 'nproc %s (why: 4096 per CPU core)\n' "$nproc"
-  printf 'core dumps off (why: disk/incident hygiene; SRV_TUNE_DEBUG=1 opts out)\n'
+  printf 'core dumps off (why: disk/incident hygiene; TEMPER_DEBUG=1 opts out)\n'
 }
 
 limits_apply() {
@@ -63,32 +63,32 @@ limits_apply() {
   source "$(dirname "${BASH_SOURCE[0]}")/../lib/dryrun.sh"
   f="$(mktemp)"
   {
-    printf '# srv-tune limits (why: computed, see recommend)\n'
+    printf '# temper limits (why: computed, see recommend)\n'
     printf '* soft nofile %s\n' "$soft"
     printf '* hard nofile %s\n' "$hard"
     printf '* soft nproc %s\n' "$nproc"
     printf '* hard nproc %s\n' "$nproc"
-    if [[ "${SRV_TUNE_DEBUG:-0}" != "1" ]]; then
+    if [[ "${TEMPER_DEBUG:-0}" != "1" ]]; then
       printf '* hard core 0\n'
     fi
   } >"$f"
-  apply_file "$backup_dir" "$(sys_p /etc/security/limits.d/00-srv-tune.conf)" "$f" "nofile/nproc from RAM/CPU" || return 1
+  apply_file "$backup_dir" "$(sys_p /etc/security/limits.d/00-temper.conf)" "$f" "nofile/nproc from RAM/CPU" || return 1
   f="$(mktemp)"
   {
-    printf '# srv-tune systemd limits\n[Manager]\nDefaultLimitNOFILE=%s:%s\n' "$soft" "$hard"
+    printf '# temper systemd limits\n[Manager]\nDefaultLimitNOFILE=%s:%s\n' "$soft" "$hard"
   } >"$f"
-  apply_file "$backup_dir" "$(sys_p /etc/systemd/system.conf.d/00-srv-tune.conf)" "$f" "systemd DefaultLimitNOFILE" || return 1
+  apply_file "$backup_dir" "$(sys_p /etc/systemd/system.conf.d/00-temper.conf)" "$f" "systemd DefaultLimitNOFILE" || return 1
   f="$(mktemp)"
   {
-    printf '# srv-tune systemd user limits\n[Manager]\nDefaultLimitNOFILE=%s:%s\n' "$soft" "$hard"
+    printf '# temper systemd user limits\n[Manager]\nDefaultLimitNOFILE=%s:%s\n' "$soft" "$hard"
   } >"$f"
-  apply_file "$backup_dir" "$(sys_p /etc/systemd/user.conf.d/00-srv-tune.conf)" "$f" "systemd user DefaultLimitNOFILE" || return 1
-  if [[ "${SRV_TUNE_DEBUG:-0}" != "1" ]]; then
+  apply_file "$backup_dir" "$(sys_p /etc/systemd/user.conf.d/00-temper.conf)" "$f" "systemd user DefaultLimitNOFILE" || return 1
+  if [[ "${TEMPER_DEBUG:-0}" != "1" ]]; then
     f="$(mktemp)"
     {
-      printf '# srv-tune coredump off\n[Coredump]\nStorage=none\n'
+      printf '# temper coredump off\n[Coredump]\nStorage=none\n'
     } >"$f"
-    apply_file "$backup_dir" "$(sys_p /etc/systemd/coredump.conf.d/00-srv-tune.conf)" "$f" "core dumps off" || return 1
+    apply_file "$backup_dir" "$(sys_p /etc/systemd/coredump.conf.d/00-temper.conf)" "$f" "core dumps off" || return 1
   fi
   return 0
 }
@@ -97,7 +97,7 @@ limits_verify() {
   local hard soft nproc
   read -r hard soft nproc < <(limits_values)
   local f
-  f="$(sys_p /etc/security/limits.d/00-srv-tune.conf)"
+  f="$(sys_p /etc/security/limits.d/00-temper.conf)"
   [[ -f "$f" ]] || {
     printf 'error: limits drop-in missing: %s\n' "$f" >&2
     return 1

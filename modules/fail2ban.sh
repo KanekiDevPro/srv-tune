@@ -15,7 +15,7 @@ fail2ban_src() {
 }
 
 fail2ban_is_live() {
-  [[ "${SRV_TUNE_TEST:-0}" != "1" && "${SRV_TUNE_SYSROOT:-/}" == "/" ]]
+  [[ "${TEMPER_TEST:-0}" != "1" && "${TEMPER_SYSROOT:-/}" == "/" ]]
 }
 
 fail2ban_detect() {
@@ -39,13 +39,13 @@ fail2ban_apply() {
   src="$(fail2ban_src)"
   tmp="$(mktemp)"
   {
-    printf '# srv-tune fail2ban (why: computed, see recommend)\n'
+    printf '# temper fail2ban (why: computed, see recommend)\n'
     printf '[DEFAULT]\nbackend = systemd\nbantime = 1h\nfindtime = 10m\nmaxretry = 5\n'
     printf 'ignoreip = 127.0.0.1/8 %s\n' "$src"
-    printf '\n[sshd]\nenabled = true\nport = %s\nmaxretry = 5\n' "${SRV_TUNE_SSH_PORT:-22}"
+    printf '\n[sshd]\nenabled = true\nport = %s\nmaxretry = 5\n' "${TEMPER_SSH_PORT:-22}"
   } >"$tmp"
-  apply_file "$backup_dir" "$(sys_p /etc/fail2ban/jail.d/00-srv-tune.local)" "$tmp" "fail2ban sshd jail" || return 1
-  if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+  apply_file "$backup_dir" "$(sys_p /etc/fail2ban/jail.d/00-temper.local)" "$tmp" "fail2ban sshd jail" || return 1
+  if [[ "${TEMPER_DRY_RUN:-0}" == "1" ]]; then
     return 0
   fi
   if ! fail2ban_is_live; then
@@ -63,7 +63,7 @@ fail2ban_apply() {
 
 fail2ban_verify() {
   local f src
-  f="$(sys_p /etc/fail2ban/jail.d/00-srv-tune.local)"
+  f="$(sys_p /etc/fail2ban/jail.d/00-temper.local)"
   src="$(fail2ban_src)"
   if [[ ! -f "$f" ]]; then
     printf 'error: fail2ban drop-in missing: %s\n' "$f" >&2

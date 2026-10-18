@@ -32,7 +32,7 @@ fi
 # bench_have <name> - 0 when usable: present on PATH and not force-missing.
 bench_have() {
   local n="$1"
-  case " ${SRV_TUNE_BENCH_FORCE_MISSING:-} " in
+  case " ${TEMPER_BENCH_FORCE_MISSING:-} " in
   *" $n "*) return 1 ;;
   esac
   command -v "$n" >/dev/null 2>&1

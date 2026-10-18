@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# ssh: ADMIN (default) / TUNNEL / CUSTOM. Drop-in 00-srv-tune.conf only
+# ssh: ADMIN (default) / TUNNEL / CUSTOM. Drop-in 00-temper.conf only
 # (first-match-wins), sshd -t validation, reload-not-restart, socket vs
 # service handling, firewall port first, guard + NEW-session confirm.
 # Key-only auth ONLY after a verified authorized_keys. No daemon is touched
@@ -9,21 +9,21 @@
 # shellcheck shell=bash
 
 ssh_mode() {
-  printf '%s\n' "${SRV_TUNE_SSH_MODE:-ADMIN}"
+  printf '%s\n' "${TEMPER_SSH_MODE:-ADMIN}"
 }
 
 ssh_user() {
-  printf '%s\n' "${SRV_TUNE_SSH_USER:-root}"
+  printf '%s\n' "${TEMPER_SSH_USER:-root}"
 }
 
 ssh_port() {
-  printf '%s\n' "${SRV_TUNE_SSH_PORT:-22}"
+  printf '%s\n' "${TEMPER_SSH_PORT:-22}"
 }
 
 # ssh_home - target user's home (TEST override for sandboxes).
 ssh_home() {
-  if [[ -n "${SRV_TUNE_TEST_USER_HOME:-}" ]]; then
-    printf '%s\n' "$SRV_TUNE_TEST_USER_HOME"
+  if [[ -n "${TEMPER_TEST_USER_HOME:-}" ]]; then
+    printf '%s\n' "$TEMPER_TEST_USER_HOME"
     return 0
   fi
   local u home
@@ -81,7 +81,7 @@ ssh_key_ok() {
       printf 'error: %s must be 600 (is %s)\n' "$keys" "$fperms" >&2
       return 1
     fi
-  elif [[ "${SRV_TUNE_TEST:-0}" != "1" ]]; then
+  elif [[ "${TEMPER_TEST:-0}" != "1" ]]; then
     printf 'error: cannot verify permissions on this platform\n' >&2
     return 1
   else
@@ -139,21 +139,21 @@ ssh_validate_dropin() {
 }
 
 ssh_dropin_path() {
-  sys_p /etc/ssh/sshd_config.d/00-srv-tune.conf
+  sys_p /etc/ssh/sshd_config.d/00-temper.conf
 }
 
 ssh_render_admin() {
   local out="$1" port
   port="$(ssh_port)"
   {
-    printf '# srv-tune ADMIN (why: key-only after verified key; drop-in sorts first)\n'
+    printf '# temper ADMIN (why: key-only after verified key; drop-in sorts first)\n'
     printf 'Port 22\n'
     if [[ "$port" != "22" ]]; then
       printf 'Port %s\n' "$port"
     fi
     printf 'PermitRootLogin prohibit-password\n'
-    if [[ "${SRV_TUNE_SSH_PARTIAL:-0}" == "1" ]]; then
-      printf '# srv-tune: password lockdown PENDING (no key at apply time; completes on NEW-session confirm)\n'
+    if [[ "${TEMPER_SSH_PARTIAL:-0}" == "1" ]]; then
+      printf '# temper: password lockdown PENDING (no key at apply time; completes on NEW-session confirm)\n'
     else
       printf 'PasswordAuthentication no\n'
     fi
@@ -167,26 +167,26 @@ ssh_render_admin() {
 ssh_render_tunnel() {
   local out="$1" port ciphers user
   port="$(ssh_port)"
-  user="${SRV_TUNE_TUNNEL_USER:-tunnel}"
+  user="${TEMPER_TUNNEL_USER:-tunnel}"
   if ssh_aesni; then
     ciphers="aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com"
   else
     ciphers="chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com"
   fi
   {
-    printf '# srv-tune TUNNEL (why: forwarding server, no shell)\n'
+    printf '# temper TUNNEL (why: forwarding server, no shell)\n'
     printf 'Port 22\n'
     if [[ "$port" != "22" ]]; then
       printf 'Port %s\n' "$port"
     fi
     printf 'AllowTcpForwarding yes\nTCPKeepAlive yes\nCompression no\n'
     printf 'MaxSessions 100\nMaxStartups 100:30:200\n'
-    if [[ "${SRV_TUNE_TUNNEL_GATEWAY:-0}" == "1" ]]; then
+    if [[ "${TEMPER_TUNNEL_GATEWAY:-0}" == "1" ]]; then
       printf 'GatewayPorts yes\n'
     else
       printf 'GatewayPorts no\n'
     fi
-    if [[ "${SRV_TUNE_TUNNEL_MODE:-}" == "tun" && "${SRV_TUNE_PROFILE:-}" == "vpn-tunnel" ]]; then
+    if [[ "${TEMPER_TUNNEL_MODE:-}" == "tun" && "${TEMPER_PROFILE:-}" == "vpn-tunnel" ]]; then
       printf 'PermitTunnel yes\n'
     else
       printf 'PermitTunnel no\n'
@@ -195,14 +195,14 @@ ssh_render_tunnel() {
     printf 'Match User %s\n' "$user"
     printf '  PermitTTY no\n'
     printf '  ForceCommand /usr/sbin/nologin\n'
-    printf '  PermitOpen %s\n' "${SRV_TUNE_PERMIT_OPEN:-none}"
+    printf '  PermitOpen %s\n' "${TEMPER_PERMIT_OPEN:-none}"
   } >"$out"
 }
 
 ssh_render_custom() {
-  local out="$1" src="${SRV_TUNE_SSH_CUSTOM_SRC:-}"
+  local out="$1" src="${TEMPER_SSH_CUSTOM_SRC:-}"
   {
-    printf '# srv-tune CUSTOM baseline (why: safe subset; operator snippet appended)\n'
+    printf '# temper CUSTOM baseline (why: safe subset; operator snippet appended)\n'
     printf 'Port 22\n'
     local port
     port="$(ssh_port)"
@@ -218,17 +218,17 @@ ssh_render_custom() {
     fi
     cat "$src" >>"$out"
   else
-    printf 'note: no SRV_TUNE_SSH_CUSTOM_SRC; baseline only\n'
+    printf 'note: no TEMPER_SSH_CUSTOM_SRC; baseline only\n'
   fi
   return 0
 }
 
 # ssh_sshd_test - sshd -t on the live merged config (the drop-in is part of
-# it after apply). Honors SRV_TUNE_SSHD_BIN (tests point it at a stub).
+# it after apply). Honors TEMPER_SSHD_BIN (tests point it at a stub).
 ssh_sshd_test() {
-  local bin="${SRV_TUNE_SSHD_BIN:-}"
+  local bin="${TEMPER_SSHD_BIN:-}"
   if [[ -z "$bin" ]]; then
-    if [[ "${SRV_TUNE_TEST:-0}" == "1" || "${SRV_TUNE_SYSROOT:-/}" != "/" ]]; then
+    if [[ "${TEMPER_TEST:-0}" == "1" || "${TEMPER_SYSROOT:-/}" != "/" ]]; then
       printf 'note: sandboxed, sshd -t skipped (whitelist validation stands)\n'
       return 0
     fi
@@ -262,14 +262,14 @@ ssh_recommend() {
     fi
   fi
   printf 'guard + NEW-session confirm required (why: reverts on silence)\n'
-  if [[ "$(ssh_mode)" == "TUNNEL" && "${SRV_TUNE_TUNNEL_MODE:-}" == "tun" && "${SRV_TUNE_PROFILE:-}" == "vpn-tunnel" ]]; then
+  if [[ "$(ssh_mode)" == "TUNNEL" && "${TEMPER_TUNNEL_MODE:-}" == "tun" && "${TEMPER_PROFILE:-}" == "vpn-tunnel" ]]; then
     printf 'tun forwarding: ip_forward drop-in (why: vpn-tunnel profile only; NAT is an operator step)\n'
   fi
 }
 
 # ssh_firewall_first <port> [backup_dir] - open the port before touching sshd.
 ssh_firewall_first() {
-  local port="$1" backup_dir="${2:-}" root="${SRV_TUNE_ROOT:-.}"
+  local port="$1" backup_dir="${2:-}" root="${TEMPER_ROOT:-.}"
   if [[ ! -f "$root/modules/firewall.sh" ]]; then
     printf 'note: no firewall module; open TCP/%s manually before reload\n' "$port"
     return 0
@@ -284,7 +284,7 @@ ssh_reload() {
   source "$(dirname "${BASH_SOURCE[0]}")/../lib/health.sh"
   local owner
   owner="$(health_ssh_owner)"
-  if [[ "${SRV_TUNE_TEST:-0}" == "1" ]] || [[ "${SRV_TUNE_SYSROOT:-/}" != "/" ]]; then
+  if [[ "${TEMPER_TEST:-0}" == "1" ]] || [[ "${TEMPER_SYSROOT:-/}" != "/" ]]; then
     printf 'note: sandboxed, no daemon reload (owner=%s)\n' "$owner"
     return 0
   fi
@@ -298,9 +298,9 @@ ssh_reload() {
 }
 
 ssh_wait_port() {
-  local port="$1" tries=0 ssbin="${SRV_TUNE_SS_BIN:-}"
+  local port="$1" tries=0 ssbin="${TEMPER_SS_BIN:-}"
   if [[ -z "$ssbin" ]]; then
-    if [[ "${SRV_TUNE_TEST:-0}" == "1" ]] || ! command -v ss >/dev/null 2>&1; then
+    if [[ "${TEMPER_TEST:-0}" == "1" ]] || ! command -v ss >/dev/null 2>&1; then
       return 0
     fi
     ssbin="ss"
@@ -318,8 +318,8 @@ ssh_wait_port() {
 
 # ssh_ensure_tunnel_user - dedicated restricted user (real systems only).
 ssh_ensure_tunnel_user() {
-  local user="${SRV_TUNE_TUNNEL_USER:-tunnel}"
-  if [[ "${SRV_TUNE_TEST:-0}" == "1" || "${SRV_TUNE_SYSROOT:-/}" != "/" ]]; then
+  local user="${TEMPER_TUNNEL_USER:-tunnel}"
+  if [[ "${TEMPER_TEST:-0}" == "1" || "${TEMPER_SYSROOT:-/}" != "/" ]]; then
     printf 'note: sandboxed, tunnel user %s not created (Match block stands)\n' "$user"
     return 0
   fi
@@ -334,8 +334,8 @@ ssh_ensure_tunnel_user() {
   mkdir -p "$home/.ssh"
   chmod 700 "$home/.ssh"
   chown "$user:$user" "$home/.ssh" 2>/dev/null || true
-  if [[ -n "${SRV_TUNE_TUNNEL_KEY:-}" && ! -f "$home/.ssh/authorized_keys" ]]; then
-    printf 'restrict,permitopen="%s" %s\n' "${SRV_TUNE_PERMIT_OPEN:-none}" "$SRV_TUNE_TUNNEL_KEY" >"$home/.ssh/authorized_keys"
+  if [[ -n "${TEMPER_TUNNEL_KEY:-}" && ! -f "$home/.ssh/authorized_keys" ]]; then
+    printf 'restrict,permitopen="%s" %s\n' "${TEMPER_PERMIT_OPEN:-none}" "$TEMPER_TUNNEL_KEY" >"$home/.ssh/authorized_keys"
     chmod 600 "$home/.ssh/authorized_keys"
     chown "$user:$user" "$home/.ssh/authorized_keys" 2>/dev/null || true
   fi
@@ -354,9 +354,9 @@ ssh_apply() {
     # No key yet: apply every non-lockout setting, defer ONLY the password
     # switch to the NEW-session confirm (never lock yourself out).
     if ssh_key_ok 2>/dev/null; then
-      unset SRV_TUNE_SSH_PARTIAL
+      unset TEMPER_SSH_PARTIAL
     else
-      export SRV_TUNE_SSH_PARTIAL=1
+      export TEMPER_SSH_PARTIAL=1
       printf 'note: no valid key for %s; password auth stays until a NEW session confirms (see guard)\n' "$(ssh_user)"
     fi
   fi
@@ -394,19 +394,19 @@ ssh_apply() {
     rm -f "$tmp"
     return 1
   }
-  if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+  if [[ "${TEMPER_DRY_RUN:-0}" == "1" ]]; then
     rm -f "$tmp"
     return 0
   fi
   # Arm the guard BEFORE any write: a crash between write and validate must
   # still revert (the timer is independent of this process). Skipped in unit
-  # tests via SRV_TUNE_NO_GUARD=1 (they arm it explicitly when needed).
+  # tests via TEMPER_NO_GUARD=1 (they arm it explicitly when needed).
   local guard_id=""
-  if [[ "${SRV_TUNE_NO_GUARD:-0}" != "1" && "${SRV_TUNE_TEST:-0}" != "1" ]]; then
-    guard_id="$(guard_start "$(basename "$backup_dir")" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
-    printf 'guard %s armed: confirm from a NEW session with: srv-tune confirm %s\n' "$guard_id" "$guard_id"
+  if [[ "${TEMPER_NO_GUARD:-0}" != "1" && "${TEMPER_TEST:-0}" != "1" ]]; then
+    guard_id="$(guard_start "$(basename "$backup_dir")" "${TEMPER_GUARD_TIMEOUT:-300}")"
+    printf 'guard %s armed: confirm from a NEW session with: temper confirm %s\n' "$guard_id" "$guard_id"
   fi
-  if [[ "${SRV_TUNE_SSH_PARTIAL:-0}" == "1" && "$mode" == "ADMIN" ]]; then
+  if [[ "${TEMPER_SSH_PARTIAL:-0}" == "1" && "$mode" == "ADMIN" ]]; then
     mkdir -p "$(guard_dir)" || {
       rm -f "$tmp"
       return 1
@@ -420,26 +420,26 @@ ssh_apply() {
   rm -f "$tmp"
   # Crash hook (tests/integration only): die right after the first write to
   # prove the armed guard still reverts. Never set in production.
-  if [[ "${SRV_TUNE_CRASH_AFTER_WRITE:-0}" == "1" ]]; then
+  if [[ "${TEMPER_CRASH_AFTER_WRITE:-0}" == "1" ]]; then
     kill -9 $$
   fi
   # Port change: socket override so socket-activated daemons listen too.
   if [[ "$port" != "22" ]]; then
     tmp="$(mktemp)"
     {
-      printf '# srv-tune socket ports (why: socket activation owns port 22+)\n[Socket]\nListenStream=22\nListenStream=%s\n' "$port"
+      printf '# temper socket ports (why: socket activation owns port 22+)\n[Socket]\nListenStream=22\nListenStream=%s\n' "$port"
     } >"$tmp"
-    if ! apply_file "$backup_dir" "$(sys_p /etc/systemd/system/ssh.socket.d/00-srv-tune.conf)" "$tmp" "socket ports"; then
+    if ! apply_file "$backup_dir" "$(sys_p /etc/systemd/system/ssh.socket.d/00-temper.conf)" "$tmp" "socket ports"; then
       rm -f "$tmp"
       return 1
     fi
     rm -f "$tmp"
   fi
-  if [[ "$mode" == "TUNNEL" && "${SRV_TUNE_TUNNEL_MODE:-}" == "tun" && "${SRV_TUNE_PROFILE:-}" == "vpn-tunnel" ]]; then
+  if [[ "$mode" == "TUNNEL" && "${TEMPER_TUNNEL_MODE:-}" == "tun" && "${TEMPER_PROFILE:-}" == "vpn-tunnel" ]]; then
     # Forwarding knobs live ONLY here: tun mode in the vpn-tunnel profile.
     tmp="$(mktemp)"
-    printf '# srv-tune tun forwarding (why: vpn-tunnel profile only)\nnet.ipv4.ip_forward=1\n' >"$tmp"
-    if ! apply_file "$backup_dir" "$(sys_p /etc/sysctl.d/00-srv-tune-tun.conf)" "$tmp" "ip_forward for tun"; then
+    printf '# temper tun forwarding (why: vpn-tunnel profile only)\nnet.ipv4.ip_forward=1\n' >"$tmp"
+    if ! apply_file "$backup_dir" "$(sys_p /etc/sysctl.d/00-temper-tun.conf)" "$tmp" "ip_forward for tun"; then
       rm -f "$tmp"
       return 1
     fi
@@ -468,7 +468,7 @@ ssh_apply() {
     return 1
   fi
   if [[ -n "$guard_id" ]]; then
-    printf 'verify the new session works, then run: srv-tune confirm %s\n' "$guard_id"
+    printf 'verify the new session works, then run: temper confirm %s\n' "$guard_id"
   fi
   ssh_tunnel_artifacts || true
   return 0
@@ -489,7 +489,7 @@ ssh_finalize_passwordless() {
   source "$base/../lib/modules.sh"
   # shellcheck disable=SC1091
   source "$base/backup.sh"
-  unset SRV_TUNE_SSH_PARTIAL
+  unset TEMPER_SSH_PARTIAL
   if ! ssh_key_ok 2>/dev/null; then
     printf 'warn: key still missing for %s; password auth stays enabled\n' "$(ssh_user)" >&2
     rm -f "$gdir/pending-${backup_id}.lockdown"
@@ -499,7 +499,7 @@ ssh_finalize_passwordless() {
   # shellcheck disable=SC1091
   source "$base/../lib/dryrun.sh"
   id2="$(new_backup_id)"
-  dir2="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}/backups/$id2"
+  dir2="${TEMPER_STATE_DIR:-/var/lib/temper}/backups/$id2"
   mkdir -p "$dir2" || return 1
   local tmp
   tmp="$(mktemp)"
@@ -544,7 +544,7 @@ ssh_close_port() {
   source "$(dirname "${BASH_SOURCE[0]}")/../lib/ssh-guard.sh"
   f="$(ssh_dropin_path)"
   if [[ ! -f "$f" ]]; then
-    printf 'error: no srv-tune ssh drop-in to edit\n' >&2
+    printf 'error: no temper ssh drop-in to edit\n' >&2
     return 1
   fi
   newports="$(grep -E '^Port ' "$f" | awk '{print $2}' | grep -v -x "$port" || true)"
@@ -552,7 +552,7 @@ ssh_close_port() {
     printf 'error: closing %s would leave no ssh port; refusing\n' "$port" >&2
     return 1
   fi
-  if command -v ss >/dev/null 2>&1 && [[ -z "${SRV_TUNE_SS_BIN:-}" ]]; then
+  if command -v ss >/dev/null 2>&1 && [[ -z "${TEMPER_SS_BIN:-}" ]]; then
     local np ok=0
     for np in $newports; do
       if ss -tlnp 2>/dev/null | grep -q ":${np} "; then
@@ -563,10 +563,10 @@ ssh_close_port() {
       printf 'error: no replacement port is listening; refusing to close %s\n' "$port" >&2
       return 1
     fi
-  elif [[ -n "${SRV_TUNE_SS_BIN:-}" ]]; then
+  elif [[ -n "${TEMPER_SS_BIN:-}" ]]; then
     local np ok=0
     for np in $newports; do
-      if "${SRV_TUNE_SS_BIN}" -tlnp 2>/dev/null | grep -q ":${np} "; then
+      if "${TEMPER_SS_BIN}" -tlnp 2>/dev/null | grep -q ":${np} "; then
         ok=1
       fi
     done
@@ -580,7 +580,7 @@ ssh_close_port() {
   fi
   local backup_dir id2
   id2="$(new_backup_id)"
-  backup_dir="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}/backups/$id2"
+  backup_dir="${TEMPER_STATE_DIR:-/var/lib/temper}/backups/$id2"
   mkdir -p "$backup_dir" || return 1
   tmp="$(mktemp)"
   grep -v -x "Port $port" "$f" >"$tmp"
@@ -593,7 +593,7 @@ ssh_close_port() {
     return 1
   fi
   rm -f "$tmp"
-  sockf="$(sys_p /etc/systemd/system/ssh.socket.d/00-srv-tune.conf)"
+  sockf="$(sys_p /etc/systemd/system/ssh.socket.d/00-temper.conf)"
   if [[ -f "$sockf" ]] && grep -q "ListenStream=$port" "$sockf"; then
     tmp="$(mktemp)"
     grep -v -x "ListenStream=$port" "$sockf" >"$tmp"
@@ -603,7 +603,7 @@ ssh_close_port() {
     }
     rm -f "$tmp"
   fi
-  if [[ "${SRV_TUNE_DRY_RUN:-0}" == "1" ]]; then
+  if [[ "${TEMPER_DRY_RUN:-0}" == "1" ]]; then
     return 0
   fi
   if ! ssh_sshd_test; then
@@ -614,9 +614,9 @@ ssh_close_port() {
     return 1
   fi
   local guard_id=""
-  if [[ "${SRV_TUNE_NO_GUARD:-0}" != "1" && "${SRV_TUNE_TEST:-0}" != "1" ]]; then
-    guard_id="$(guard_start "$id2" "${SRV_TUNE_GUARD_TIMEOUT:-300}")"
-    printf 'guard %s armed: confirm with srv-tune confirm %s\n' "$guard_id" "$guard_id"
+  if [[ "${TEMPER_NO_GUARD:-0}" != "1" && "${TEMPER_TEST:-0}" != "1" ]]; then
+    guard_id="$(guard_start "$id2" "${TEMPER_GUARD_TIMEOUT:-300}")"
+    printf 'guard %s armed: confirm with temper confirm %s\n' "$guard_id" "$guard_id"
   fi
   if ! ssh_reload; then
     printf 'error: reload failed; rolling back\n' >&2
@@ -634,12 +634,12 @@ ssh_tunnel_artifacts() {
   if [[ "$(ssh_mode)" != "TUNNEL" ]]; then
     return 0
   fi
-  local root="${SRV_TUNE_ROOT:-.}" state="${SRV_TUNE_STATE_DIR:-/var/lib/srv-tune}"
-  local host="${SRV_TUNE_SSH_HOST:-tunnel-host}" user="${SRV_TUNE_TUNNEL_USER:-tunnel}" port
+  local root="${TEMPER_ROOT:-.}" state="${TEMPER_STATE_DIR:-/var/lib/temper}"
+  local host="${TEMPER_SSH_HOST:-tunnel-host}" user="${TEMPER_TUNNEL_USER:-tunnel}" port
   port="$(ssh_port)"
   mkdir -p "$state" || return 1
   {
-    printf '# generated by srv-tune (copy into ~/.ssh/config)\n'
+    printf '# generated by temper (copy into ~/.ssh/config)\n'
     printf 'Host %s-tunnel\n  HostName %s\n  User %s\n  Port %s\n  Compression no\n' "$host" "$host" "$user" "$port"
   } >"$state/ssh-client-$host.conf"
   sed -e "s|%i|$host:22|g" "$root/templates/autossh-unit.service" >"$state/autossh-tunnel.service" 2>/dev/null || {
@@ -666,7 +666,7 @@ ssh_verify() {
   fi
   local port
   port="$(ssh_port)"
-  if [[ "${SRV_TUNE_TEST:-0}" == "1" ]] || ! command -v ss >/dev/null 2>&1; then
+  if [[ "${TEMPER_TEST:-0}" == "1" ]] || ! command -v ss >/dev/null 2>&1; then
     return 0
   fi
   # shellcheck disable=SC1091

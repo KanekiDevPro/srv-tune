@@ -6,18 +6,18 @@
 # shellcheck shell=bash
 
 npm_mirror_have() {
-  # SRV_TUNE_NPM_BIN overrides detection (tests): "none" forces absent.
-  if [[ "${SRV_TUNE_NPM_BIN:-}" == "none" ]]; then
+  # TEMPER_NPM_BIN overrides detection (tests): "none" forces absent.
+  if [[ "${TEMPER_NPM_BIN:-}" == "none" ]]; then
     return 1
   fi
-  if [[ -n "${SRV_TUNE_NPM_BIN:-}" ]]; then
+  if [[ -n "${TEMPER_NPM_BIN:-}" ]]; then
     return 0
   fi
   command -v npm >/dev/null 2>&1
 }
 
 npm_mirror_url() {
-  registry_pick_url "${SRV_TUNE_ROOT:-.}/data/mirrors-npm.list"
+  registry_pick_url "${TEMPER_ROOT:-.}/data/mirrors-npm.list"
 }
 
 npm_mirror_detect() {
@@ -52,7 +52,7 @@ npm_mirror_apply() {
     return 1
   }
   tmp="$(mktemp)"
-  printf '# srv-tune npm mirror\nregistry=%s\n' "$url" >"$tmp"
+  printf '# temper npm mirror\nregistry=%s\n' "$url" >"$tmp"
   apply_file "$backup_dir" "$(sys_p /etc/npmrc)" "$tmp" "npm registry $url" || return 1
   return 0
 }

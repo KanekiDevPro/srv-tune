@@ -13,7 +13,7 @@ applied." `Include` globs expand in lexical order; relative paths resolve
 under `/etc/ssh`.
 
 Consequence: Ubuntu/Debian ship `Include /etc/ssh/sshd_config.d/*.conf` at
-the TOP of `sshd_config`, so our drop-in must sort FIRST (`00-srv-tune.conf`).
+the TOP of `sshd_config`, so our drop-in must sort FIRST (`00-temper.conf`).
 Design stands. (P3 will `sshd -t` before every reload.)
 
 ## 2. ssh.socket behavior — CONFIRMED (Ubuntu), PARTIAL (Debian)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# srv-tune installer: installs ONLY, never applies anything.
+# temper installer: installs ONLY, never applies anything.
 # Usage:
 #   ./install.sh [--prefix /usr/local] [--yes]
 #   curl -fsSL URL/install.sh | bash -s -- --yes   # NOT recommended blindly:
@@ -52,11 +52,11 @@ if [[ -n "$TAG" ]]; then
     printf 'error: --tag requires --sha256 <expected-sum>\n' >&2
     exit 2
   fi
-  base="${SRV_TUNE_RELEASE_BASE:-https://github.com/KanekiDevPro/srv-tune/releases/download}"
+  base="${TEMPER_RELEASE_BASE:-https://github.com/KanekiDevPro/temper/releases/download}"
   WORK="$(mktemp -d)"
   trap 'rm -rf "$WORK"' EXIT
   printf 'downloading %s ...\n' "$TAG"
-  curl -fsSL --max-time 120 "$base/$TAG/srv-tune-$TAG.tar.gz" -o "$WORK/pkg.tar.gz" || {
+  curl -fsSL --max-time 120 "$base/$TAG/temper-$TAG.tar.gz" -o "$WORK/pkg.tar.gz" || {
     printf 'error: download failed\n' >&2
     exit 1
   }
@@ -66,7 +66,7 @@ if [[ -n "$TAG" ]]; then
     exit 1
   fi
   tar xzf "$WORK/pkg.tar.gz" -C "$WORK"
-  SRC_DIR="$WORK/srv-tune-$TAG"
+  SRC_DIR="$WORK/temper-$TAG"
   if [[ ! -f "$SRC_DIR/optimizer.sh" ]]; then
     printf 'error: bad tarball layout (no optimizer.sh)\n' >&2
     exit 1
@@ -75,12 +75,12 @@ if [[ -n "$TAG" ]]; then
 fi
 
 if [[ ! -f "$SRC_DIR/optimizer.sh" || ! -f "$SRC_DIR/VERSION" ]]; then
-  printf 'error: %s is not a srv-tune tree\n' "$SRC_DIR" >&2
+  printf 'error: %s is not a temper tree\n' "$SRC_DIR" >&2
   exit 1
 fi
 
-DEST="$PREFIX/share/srv-tune"
-BINLINK="$PREFIX/bin/srv-tune"
+DEST="$PREFIX/share/temper"
+BINLINK="$PREFIX/bin/temper"
 mkdir -p "$DEST" "$(dirname "$BINLINK")"
 cp -a "$SRC_DIR/optimizer.sh" "$SRC_DIR/VERSION" "$SRC_DIR/LICENSE" "$DEST/" 2>/dev/null || cp -a "$SRC_DIR/optimizer.sh" "$SRC_DIR/VERSION" "$DEST/"
 for d in lib modules scanner profiles bench data templates completion web; do
@@ -89,9 +89,9 @@ for d in lib modules scanner profiles bench data templates completion web; do
     cp -a "$SRC_DIR/$d" "$DEST/"
   fi
 done
-if [[ -f "$SRC_DIR/docs/srv-tune.1" ]]; then
+if [[ -f "$SRC_DIR/docs/temper.1" ]]; then
   mkdir -p "$PREFIX/share/man/man1"
-  cp -a "$SRC_DIR/docs/srv-tune.1" "$PREFIX/share/man/man1/srv-tune.1"
+  cp -a "$SRC_DIR/docs/temper.1" "$PREFIX/share/man/man1/temper.1"
 fi
 {
   printf 'prefix=%s\n' "$PREFIX"
@@ -104,5 +104,5 @@ if [[ ! -L "$BINLINK" ]]; then
   printf '#!/usr/bin/env bash\nexec "%s/optimizer.sh" "$@"\n' "$DEST" >"$BINLINK"
 fi
 chmod +x "$DEST/optimizer.sh"
-printf 'installed srv-tune %s to %s (run: srv-tune --help)\n' "$(cat "$DEST/VERSION")" "$DEST"
-printf 'nothing was configured: run srv-tune scan first, then --dry-run.\n'
+printf 'installed temper %s to %s (run: temper --help)\n' "$(cat "$DEST/VERSION")" "$DEST"
+printf 'nothing was configured: run temper scan first, then --dry-run.\n'

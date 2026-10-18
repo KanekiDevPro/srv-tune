@@ -3,10 +3,10 @@
 # Pre-flight: root, disk space, network, OS support. Warn on EOL, never upgrade.
 # shellcheck shell=bash
 
-if [[ -n "${__SRV_TUNE_PREFLIGHT_SOURCED:-}" ]]; then
+if [[ -n "${__TEMPER_PREFLIGHT_SOURCED:-}" ]]; then
   return 0
 fi
-__SRV_TUNE_PREFLIGHT_SOURCED=1
+__TEMPER_PREFLIGHT_SOURCED=1
 
 preflight_os_id() {
   local f="${OS_RELEASE_FILE:-/etc/os-release}" id

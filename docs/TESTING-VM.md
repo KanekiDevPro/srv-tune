@@ -11,7 +11,7 @@ Status labels used in reports: `vm-verified` (did it on a real VM) vs
 ## 0. Prepare
 
 ```bash
-git clone <repo> /tmp/srv-tune && cd /tmp/srv-tune
+git clone <repo> /tmp/temper && cd /tmp/temper
 ./optimizer.sh scan --lang en
 ./optimizer.sh audit
 ```
@@ -31,23 +31,23 @@ systemctl is-active ssh.socket ssh.service || true
   through `ssh.service`.
 - Apply: `optimizer apply --profile generic --only ssh --dry-run` first
   (diff + reasons, no changes), then without `--dry-run --yes`.
-- Confirm `00-srv-tune.conf` exists in `/etc/ssh/sshd_config.d/` and sorts
+- Confirm `00-temper.conf` exists in `/etc/ssh/sshd_config.d/` and sorts
   first (`ls`). `sshd -t` must pass. Main `sshd_config` must be UNTOUCHED
   (`git diff` equivalent: compare mtime/content before/after).
 
 ## 2. Port change + unconfirmed-guard revert
 
 ```bash
-SRV_TUNE_SSH_PORT=2222 optimizer apply --profile generic --only ssh --yes
-# guard prints: srv-tune confirm <id>
+TEMPER_SSH_PORT=2222 optimizer apply --profile generic --only ssh --yes
+# guard prints: temper confirm <id>
 ss -tlnp | grep 2222   # must listen; port 22 must ALSO still listen
 sleep 310              # let the guard expire WITHOUT confirming
 ss -tlnp | grep 2222   # must be GONE (auto-revert fired)
-cat /etc/ssh/sshd_config.d/00-srv-tune.conf  # original content back
+cat /etc/ssh/sshd_config.d/00-temper.conf  # original content back
 ```
 
 Then redo, connect on 2222 from a NEW session, run
-`srv-tune confirm <id>` THERE, and only then close the old port:
+`temper confirm <id>` THERE, and only then close the old port:
 
 ```bash
 optimizer ssh-close-port 22   # refuses unless 2222 listens right now
@@ -58,9 +58,9 @@ optimizer ssh-close-port 22   # refuses unless 2222 listens right now
 - ufw path: `ufw status numbered` shows the ssh allow BEFORE `enable`;
   `/etc/default/ufw` has `IPV6=yes`. Reboot, then `ufw status` is still
   active (ufw persists itself).
-- nft path: `nft list ruleset` shows ONLY `table inet srv_tune` added;
+- nft path: `nft list ruleset` shows ONLY `table inet temper` added;
   pre-existing tables (e.g. Docker's) are untouched. Reboot: the operator
-  must load `/etc/nftables.d/00-srv-tune.nft` at boot (printed note) —
+  must load `/etc/nftables.d/00-temper.nft` at boot (printed note) —
   verify rules return after reboot, or record that persistence is manual.
 - Docker warning: with Docker installed, `scan`/`audit` must print the
   "published ports bypass ufw" warning; verify a published test port is
@@ -68,7 +68,7 @@ optimizer ssh-close-port 22   # refuses unless 2222 listens right now
 
 ## 4. fail2ban (ignoreip works, outsiders banned)
 
-- `cat /etc/fail2ban/jail.d/00-srv-tune.local`: `ignoreip` contains YOUR
+- `cat /etc/fail2ban/jail.d/00-temper.local`: `ignoreip` contains YOUR
   session source address and `backend = systemd`.
 - From an EXTERNAL host (not the session IP): fail 6+ logins with a bad
   password, then `fail2ban-client status sshd` shows a ban for that IP.
@@ -85,7 +85,7 @@ optimizer apply --profile vpn-tunnel --dry-run   # review: TUNNEL mode
 - `GatewayPorts` stays `no` unless explicitly requested.
 - `PermitTunnel`/`ip_forward` appear ONLY with tun mode in this profile.
 - Client snippet + autossh unit are generated under
-  `/var/lib/srv-tune/` (copy, never auto-installed).
+  `/var/lib/temper/` (copy, never auto-installed).
 
 ## 6. Crash between write and validate
 
