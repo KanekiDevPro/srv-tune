@@ -143,14 +143,14 @@ old state tree (`/var/lib/srv-tune`) by hand.
 قدیمی (`/var/lib/srv-tune`) را دستی حذف کنید.
 ```
 
-- [ ] **Step 6: Guard grep — the success criterion** (exact allowlist: CHANGELOG historical 3 lines + the new Unreleased bullet, README×2 formerly lines, the DEBT row)
+- [ ] **Step 6: Guard grep — the success criterion** (exact allowlist: CHANGELOG historical 3 lines + the new Unreleased bullet, README×2 formerly lines, the DEBT row, the pre-publish historical-email exception)
 
 ```bash
-git grep -l -i -E 'srv[-_]tune' -- . | sort   # must be exactly 6 files
+git grep -l -i -E 'srv[-_]tune' -- . | sort   # must be exactly 7 files
 git grep -c -i -E 'srv[-_]tune' -- CHANGELOG.md   # expect 5 (3 historical lines + 2 in the new bullet)
 git grep -n -i -E 'srv[-_]tune' -- CHANGELOG.md | head -3   # the 3 historical hits (originally lines 7/17/43) unchanged, still srv-tune
 ```
-Expected file list: `CHANGELOG.md`, `README.md`, `README.fa.md`, `docs/VERIFICATION-DEBT.md`, `docs/superpowers/plans/2026-10-19-rename-temper.md`, `docs/superpowers/specs/2026-10-19-rename-temper-design.md` — nothing else. Every hit inside the first four files is one of the enumerated new lines plus CHANGELOG's 3 historical lines.
+Expected file list: `CHANGELOG.md`, `README.md`, `README.fa.md`, `docs/VERIFICATION-DEBT.md`, `tests/pre-publish.sh` (historical email allowlist, 2 lines), `docs/superpowers/plans/2026-10-19-rename-temper.md`, `docs/superpowers/specs/2026-10-19-rename-temper-design.md` — nothing else. Every hit inside the first four files is one of the enumerated new lines plus CHANGELOG's 3 historical lines.
 
 - [ ] **Step 7: `docs/VERIFICATION-DEBT.md`** — append a dated status entry directly after the existing `[x] Status 2026-10-18` entry (still inside the `## Round 2 data hardening (open)` list, before `## Manual scenario tracker`):
 
@@ -176,7 +176,7 @@ git commit -m "chore(release): bump VERSION to 0.5.0, records for the Temper ren
 - [ ] **Step 1: Final guard + push**
 
 ```bash
-git grep -n -i -E 'srv[-_]tune' -- . | grep -vE 'CHANGELOG.md|README.md|README.fa.md|docs/VERIFICATION-DEBT.md|docs/superpowers/(specs|plans)/2026-10-19' || echo "guard: clean"
+git grep -n -i -E 'srv[-_]tune' -- . | grep -vE 'CHANGELOG.md|README.md|README.fa.md|docs/VERIFICATION-DEBT.md|tests/pre-publish.sh|docs/superpowers/(specs|plans)/2026-10-19' || echo "guard: clean"
 git push -u origin v0.5/rename-temper
 ```
 
