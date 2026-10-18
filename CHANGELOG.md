@@ -2,7 +2,7 @@
 
 All notable changes, newest first. Format: Conventional Commits subjects.
 
-## Unreleased
+## v0.4.0 (2026-10-19)
 
 - Tunnel UI: `sudo srv-tune tunnel` interactive menu (status, keys,
   access, sessions) plus scriptable `tunnel status|keys|access|sessions`;
