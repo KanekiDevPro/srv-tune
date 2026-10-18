@@ -93,7 +93,30 @@ Covered automatically by `tests/vm/p3b-systemd.sh` (kill -9 at the exact
 point, real timer reverts). Manually: set a 10s guard, start apply, `kill
 -9` the optimizer PID mid-run, wait, confirm the original files are back.
 
-## 7. What NOT to do on the VM
+## 7. Tunnel UI
+
+```bash
+sudo ./optimizer.sh tunnel                # interactive menu (TUI)
+sudo ./optimizer.sh tunnel keys add < client.pub
+sudo ./optimizer.sh tunnel keys list --json
+```
+
+- TUI key add through the real tunnel user: from a NEW session
+  `ssh -p <port> tunnel@<vm>` must get `PermitTTY no`/nologin (no shell),
+  while a forwarding-only command (`ssh -L 8080:127.0.0.1:80 tunnel@<vm>`)
+  works.
+- Panel over the tunnel: run `sudo ./optimizer.sh tunnel web` on the VM,
+  then from the workstation `ssh -L 8787:127.0.0.1:8787 user@vm` and open
+  the printed token URL in a REAL browser: status, sessions, and keys must
+  render, and adding then removing a key must work. A `curl` attempt from
+  outside the VM must NOT reach 8787.
+- Remove the LAST key through the panel (or `keys remove --fp`): the
+  already-authenticated session keeps working, a NEW login fails.
+- `access set --permit-open db:5432 --gateway-ports no` (typed confirm),
+  then confirm the guard from a NEW session and verify `sshd -T` shows the
+  new PermitOpen.
+
+## 8. What NOT to do on the VM
 
 Never `ufw --force reset`, `iptables -F`, `nft flush ruleset`, or edit
 `/etc/ssh/sshd_config` directly. The hygiene gate (`tests/hygiene.sh`)

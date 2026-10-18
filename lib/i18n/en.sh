@@ -21,6 +21,21 @@ i18n_get() {
   risk_dns_extra) printf 'RISK extra resolvers: a third-party resolver sees EVERY query and may return altered answers (censorship, hijack). Use only resolvers you trust. Extras are never auto-selected.' ;;
   type_dns_extra) printf 'Type DNS-EXTRA-YES to use extra resolvers (anything else aborts)' ;;
   aborted) printf 'aborted by operator, nothing was changed' ;;
+  tunnel_title) printf 'Tunnel' ;;
+  tunnel_keys) printf 'Keys' ;;
+  tunnel_access) printf 'Access policy' ;;
+  tunnel_sessions) printf 'Sessions' ;;
+  tunnel_refresh) printf 'Refresh' ;;
+  tunnel_quit) printf 'Quit' ;;
+  tunnel_back) printf 'Back' ;;
+  tunnel_add) printf 'Add' ;;
+  tunnel_remove) printf 'Remove' ;;
+  tunnel_list) printf 'List' ;;
+  tunnel_edit) printf 'Edit' ;;
+  tunnel_permits) printf 'PermitOpen (none or host:port[,host:port])' ;;
+  tunnel_gateway) printf 'GatewayPorts (yes/no)' ;;
+  tunnel_risk) printf 'RISK: this rewrites the TUNNEL sshd drop-in; a bad value can cut your own access. After the reload, prove a NEW session before the guard expires.' ;;
+  tunnel_confirm) printf 'Type SSH-YES to rewrite the tunnel access policy:' ;;
   *) return 1 ;;
   esac
 }

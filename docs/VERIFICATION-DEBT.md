@@ -24,6 +24,7 @@ This file is updated in every PR.
 | profiles/UX/i18n | CI (mostly) | bats: mapping, gating, typed phrases, i18n parity, custom config | whiptail interactive path (runners lack whiptail: plain path only) — unit-tested only |
 | release workflow | CI (draft only) | v0.2.0: pending-data gate, tarball + sha256, draft creation all ran on a real tag; v0.3.0 adds the VERSION==tag gate | publish + pinned install from the release assets is manual |
 | uutils coreutils / sudo-rs (26.04) | CI | uutils-check job: full bats + scanner smoke on ubuntu:26.04; flavors recorded | none outstanding |
+| tunnel UI (TUI + web panel) | unit-tested only | bats: status/json from fixtures, key add/remove/dedupe/perms/audit, sessions parse, access set render + env preservation, web auth/CSRF/rate-limit via stub CLI; integration: real sshd -t -f on the rendered tunnel drop-in + real key files in temp | TESTING-VM §7 (interactive TUI, real browser login over ssh -L, real key login through the tunnel user) |
 
 ## Round 2 data hardening (open)
 
@@ -74,6 +75,7 @@ never by assertion.
 | §4 fail2ban ignoreip + external ban | open | `.../04-fail2ban.log` |
 | §5 TUNNEL restrictions | open | `.../05-tunnel.log` |
 | §6 crash between write and validate | open (scripted in `tests/vm/p3b-systemd.sh`) | `.../06-crash.log` |
+| §7 tunnel UI (TUI, panel, key auth) | open | `.../07-tunnel-ui.log` |
 
 Harness: `tests/vm/run-all.sh <ssh-alias> <os>` (refuses localhost; needs a
 snapshot-restore hook for destructive scenarios; stops on SSH loss).

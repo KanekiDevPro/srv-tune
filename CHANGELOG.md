@@ -2,6 +2,23 @@
 
 All notable changes, newest first. Format: Conventional Commits subjects.
 
+## Unreleased
+
+- Tunnel UI: `sudo srv-tune tunnel` interactive menu (status, keys,
+  access, sessions) plus scriptable `tunnel status|keys|access|sessions`;
+  non-tty runs print status instead of a menu.
+- Tunnel key lifecycle: `keys list|add|remove` with ssh-keygen
+  validation, body dedupe, per-change backup, 600 authorized_keys, and
+  an audit log for every add/remove.
+- Guarded tunnel policy edits: `access set` rewrites only the TUNNEL
+  drop-in's policy lines (`--permit-open ...`, `--gateway-ports
+  yes|no`), preserves the current port/user, and runs through the ssh
+  guard (confirm from a NEW session).
+- Tunnel web panel: `sudo srv-tune tunnel web` — loopback-only Python
+  stdlib HTTP panel, one-shot token login (HttpOnly cookie + CSRF),
+  per-IP login rate limit, read-only sshd policy by design; reach it from
+  a workstation with `ssh -L`.
+
 ## v0.3.0 (2026-10-17)
 
 - repair command: replays the health checks, then re-applies ONLY the

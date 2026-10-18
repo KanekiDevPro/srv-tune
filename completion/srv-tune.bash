@@ -4,10 +4,11 @@
 # bash-completion's completions dir as "srv-tune".
 # shellcheck shell=bash
 
-_srv_tune_cmds="scan recommend apply rollback list-backups status benchmark explain audit update uninstall confirm ssh-close-port health repair"
-_srv_tune_flags="--profile --only --dry-run --yes --lang --json --diff --with-ssh --with-firewall --with-registry --with-dot --mirror --dns-extra --config --out --iperf-server --install-deps --compare --format --force --help --version"
+_srv_tune_cmds="scan recommend apply rollback list-backups status benchmark explain audit update uninstall confirm ssh-close-port health repair tunnel"
+_srv_tune_flags="--profile --only --dry-run --yes --lang --json --diff --with-ssh --with-firewall --with-registry --with-dot --mirror --dns-extra --config --out --iperf-server --install-deps --compare --format --force --help --version --fp --file --comment --permit-open --gateway-ports --port --bind"
 _srv_tune_profiles="generic web database docker vpn-tunnel low-ram custom"
 _srv_tune_modules="limits network kernel dns mirror pip_mirror npm_mirror docker_mirror ssh firewall fail2ban"
+_srv_tune_tunnel_cmds="status keys access sessions web"
 
 _srv_tune() {
   local cur prev
@@ -28,6 +29,10 @@ _srv_tune() {
     ;;
   --format)
     mapfile -t COMPREPLY < <(compgen -W "md json html" -- "$cur")
+    return 0
+    ;;
+  tunnel)
+    mapfile -t COMPREPLY < <(compgen -W "$_srv_tune_tunnel_cmds" -- "$cur")
     return 0
     ;;
   esac

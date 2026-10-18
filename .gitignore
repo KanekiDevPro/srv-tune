@@ -1,3 +1,4 @@
 .superpowers/
 *.log
+__pycache__/
 /tmp/
