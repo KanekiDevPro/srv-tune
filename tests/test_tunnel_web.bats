@@ -37,6 +37,13 @@ setup() {
     cat "$SRV_TUNE_TMP/web.log" >&2
     false
   }
+  # The token file is written before the socket binds; wait for the port so
+  # the first request cannot race a slow start (flake seen in CI: curl 7 on
+  # the dashboard test).
+  _wait_for 50 curl -s -o /dev/null "$BASE/" || {
+    cat "$SRV_TUNE_TMP/web.log" >&2
+    false
+  }
   TOKEN="$(cat "$TOKEN_FILE")"
 }
 
