@@ -143,14 +143,14 @@ old state tree (`/var/lib/srv-tune`) by hand.
 قدیمی (`/var/lib/srv-tune`) را دستی حذف کنید.
 ```
 
-- [ ] **Step 6: Guard grep — the success criterion** (exact allowlist: CHANGELOG historical 3 lines + the new Unreleased bullet, README×2 formerly lines, the DEBT row, the pre-publish historical-email exception)
+- [ ] **Step 6: Guard grep — the success criterion** (exact allowlist: CHANGELOG historical 3 lines + the new Unreleased bullet's old-name line, README×2 formerly lines, the pre-publish historical-email exception)
 
 ```bash
-git grep -l -i -E 'srv[-_]tune' -- . | sort   # must be exactly 7 files
-git grep -c -i -E 'srv[-_]tune' -- CHANGELOG.md   # expect 5 (3 historical lines + 2 in the new bullet)
-git grep -n -i -E 'srv[-_]tune' -- CHANGELOG.md | head -3   # the 3 historical hits (originally lines 7/17/43) unchanged, still srv-tune
+git grep -l -i -E 'srv[-_]tune' -- . | sort   # must be exactly 6 files
+git grep -c -i -E 'srv[-_]tune' -- CHANGELOG.md   # expect 4 lines (3 historical + 1 from the new bullet)
+git grep -n -i -E 'srv[-_]tune' -- CHANGELOG.md   # eyeball: 1 new-bullet line + the 3 historical lines unchanged
 ```
-Expected file list: `CHANGELOG.md`, `README.md`, `README.fa.md`, `docs/VERIFICATION-DEBT.md`, `tests/pre-publish.sh` (historical email allowlist, 2 lines), `docs/superpowers/plans/2026-10-19-rename-temper.md`, `docs/superpowers/specs/2026-10-19-rename-temper-design.md` — nothing else. Every hit inside the first four files is one of the enumerated new lines plus CHANGELOG's 3 historical lines.
+Expected file list: `CHANGELOG.md` (4 lines), `README.md` and `README.fa.md` (formerly line each), `tests/pre-publish.sh` (historical email allowlist, 2 lines), `docs/superpowers/plans/2026-10-19-rename-temper.md`, `docs/superpowers/specs/2026-10-19-rename-temper-design.md` — nothing else. The VERIFICATION-DEBT row names no old-name string, so that file has no hits by design.
 
 - [ ] **Step 7: `docs/VERIFICATION-DEBT.md`** — append a dated status entry directly after the existing `[x] Status 2026-10-18` entry (still inside the `## Round 2 data hardening (open)` list, before `## Manual scenario tracker`):
 
